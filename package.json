@@ -1,0 +1,10 @@
+{
+  "bundleDependencies": false,
+  "dependencies": {
+    "phoenix": "^1.5.1"
+  },
+  "description": "JS for Elm Phoenix ports",
+  "main": "js/elm-phoenix-ports.js",
+  "name": "elm-phoenix-ports",
+  "version": "0.1.0-dev"
+}
