@@ -10,7 +10,7 @@ config :elm_phoenix, ElmPhoenix.Web.Endpoint,
   url: [host: "localhost"],
   secret_key_base: "z8lUp9PvAn11JXBqC27JlAde8qFhWM1wUKoVWft2aHAig6BIIQb/wT7IOpEGjcMu",
   render_errors: [view: ElmPhoenix.Web.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: ElmPhoenix.PubSub, adapter: Phoenix.PubSub.PG2]
+  pubsub_server: ElmPhoenix.PubSub
 
 # Configures Elixir's Logger
 config :logger, :console,
