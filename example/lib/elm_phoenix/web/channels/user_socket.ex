@@ -2,10 +2,10 @@ defmodule ElmPhoenix.Web.UserSocket do
   use Phoenix.Socket
 
   ## Channels
-  channel "room:*", ElmPhoenix.Web.RoomChannel
+  channel("room:*", ElmPhoenix.Web.RoomChannel)
 
   ## Transports
-  transport :websocket, Phoenix.Transports.WebSocket
+  transport(:websocket, Phoenix.Transports.WebSocket)
   # transport :longpoll, Phoenix.Transports.LongPoll
 
   # Socket params are passed from the client and can

@@ -72,6 +72,7 @@ defmodule ElmPhoenix.Web.Presence do
   information, while maintaining the required `:metas` field from the
   original presence data.
   """
-  use Phoenix.Presence, otp_app: :elm_phoenix,
-                        pubsub_server: ElmPhoenix.PubSub
+  use Phoenix.Presence,
+    otp_app: :elm_phoenix,
+    pubsub_server: ElmPhoenix.PubSub
 end

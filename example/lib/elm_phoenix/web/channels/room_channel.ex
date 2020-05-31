@@ -25,6 +25,6 @@ defmodule ElmPhoenix.Web.RoomChannel do
   end
 
   defp now do
-    System.system_time(:seconds)
+    System.system_time(:second)
   end
 end
