@@ -6,19 +6,19 @@ defmodule ElmPhoenix.Web.RoomChannelTest do
   setup do
     {:ok, _, socket} =
       socket("user_id", %{some: :assign})
-      |> subscribe_and_join(RoomChannel, "room:lobby")
+      |> subscribe_and_join(RoomChannel, "room:lobby", %{"user_name" => "user1"})
 
     {:ok, socket: socket}
   end
 
-  test "ping replies with status ok", %{socket: socket} do
-    ref = push(socket, "ping", %{"hello" => "there"})
-    assert_reply(ref, :ok, %{"hello" => "there"})
+  test "new_msg replies with status ok", %{socket: socket} do
+    ref = push(socket, "new_msg", %{"msg" => "hello"})
+    assert_reply(ref, :ok)
   end
 
-  test "shout broadcasts to room:lobby", %{socket: socket} do
-    push(socket, "shout", %{"hello" => "all"})
-    assert_broadcast("shout", %{"hello" => "all"})
+  test "new_msg broadcasts", %{socket: socket} do
+    push(socket, "new_msg", %{"msg" => "hello"})
+    assert_broadcast("new_msg", %{msg: "hello", user_name: "user1"})
   end
 
   test "broadcasts are pushed to the client", %{socket: socket} do
