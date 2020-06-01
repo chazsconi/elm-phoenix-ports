@@ -104,7 +104,7 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                     ( { model | socketState = Connected }
                     , ports.connectSocket
                         { endpoint = socket.endpoint
-                        , params = JE.dict identity JE.string (Dict.fromList socket.params)
+                        , params = JE.object <| List.map (\( k, v ) -> ( k, JE.string v )) socket.params
                         }
                     , []
                     )
