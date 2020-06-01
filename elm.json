@@ -2,7 +2,7 @@
     "type": "package",
     "name": "chazsconi/elm-phoenix-ports",
     "summary": "Elm Phoenix with ports",
-    "license": "BSD",
+    "license": "MIT",
     "version": "0.0.1",
     "exposed-modules": [
         "Phoenix",
