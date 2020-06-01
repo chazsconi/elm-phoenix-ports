@@ -11,10 +11,12 @@
 //
 // If you no longer want to use a dependency, remember
 // to also remove its path from "config.paths.watched".
-import "phoenix_html"
+import '../css/app.css'
+import * as elmChat from "../elm/src/Chat.elm"
+
 
 const elmDiv = document.querySelector("#elm-container");
-const elmApp = Elm.Chat.embed(elmDiv);
+const elmApp = elmChat.Chat.embed(elmDiv);
 
 // Import local files
 //

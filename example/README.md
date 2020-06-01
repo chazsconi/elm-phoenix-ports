@@ -7,7 +7,8 @@ The Channel code can be found [here](https://github.com/saschatimme/elm-phoenix/
 To start your Phoenix app:
 
   * Install dependencies with `mix deps.get`
-  * Install Node.js dependencies with `cd assets && npm install`
+  * Install Node.js dependencies with `(cd assets && npm install)`
+  * Install elm-dependencies `(cd assets/elm && elm-github-install)`
   * Start Phoenix endpoint with `mix phoenix.server`
   * Make sure that you have Elm installed
 
