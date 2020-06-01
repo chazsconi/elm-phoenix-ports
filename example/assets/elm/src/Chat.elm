@@ -1,16 +1,16 @@
 module Chat exposing (..)
 
-import Json.Encode as JE
-import Json.Decode as JD exposing (Decoder)
 import Dict exposing (Dict)
 import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events as Events
+import Json.Decode as JD exposing (Decoder)
+import Json.Encode as JE
 import Phoenix
 import Phoenix.Channel as Channel exposing (Channel)
 import Phoenix.Presence as Presence exposing (Presence)
-import Phoenix.Socket as Socket exposing (Socket, AbnormalClose)
 import Phoenix.Push as Push
+import Phoenix.Socket as Socket exposing (AbnormalClose, Socket)
 import Time exposing (Time)
 
 
@@ -117,7 +117,7 @@ update message model =
                     Push.init "room:lobby" "new_msg"
                         |> Push.withPayload (JE.object [ ( "msg", JE.string model.composedMessage ) ])
             in
-                { model | composedMessage = "" } ! [ Phoenix.push lobbySocket push ]
+            { model | composedMessage = "" } ! [ Phoenix.push lobbySocket push ]
 
         NewMsg payload ->
             case JD.decodeValue decodeNewMsg payload of
@@ -190,14 +190,14 @@ lobby userName =
             Presence.create
                 |> Presence.onChange UpdatePresence
     in
-        Channel.init "room:lobby"
-            |> Channel.withPayload (JE.object [ ( "user_name", JE.string userName ) ])
-            |> Channel.onRequestJoin (UpdateState JoiningLobby)
-            |> Channel.onJoin (\_ -> UpdateState JoinedLobby)
-            |> Channel.onLeave (\_ -> UpdateState LeftLobby)
-            |> Channel.on "new_msg" (\msg -> NewMsg msg)
-            |> Channel.withPresence presence
-            |> Channel.withDebug
+    Channel.init "room:lobby"
+        |> Channel.withPayload (JE.object [ ( "user_name", JE.string userName ) ])
+        |> Channel.onRequestJoin (UpdateState JoiningLobby)
+        |> Channel.onJoin (\_ -> UpdateState JoinedLobby)
+        |> Channel.onLeave (\_ -> UpdateState LeftLobby)
+        |> Channel.on "new_msg" (\msg -> NewMsg msg)
+        |> Channel.withPresence presence
+        |> Channel.withDebug
 
 
 subscriptions : Model -> Sub Msg
@@ -209,6 +209,7 @@ phoenixSubscription model =
     Phoenix.connect socket <|
         if model.isActive then
             [ lobby model.userName ]
+
         else
             []
 
@@ -243,14 +244,14 @@ enterLeaveLobby model =
         socketStatusClass =
             "socket-status socket-status--" ++ (String.toLower <| toString <| model.connectionStatus)
     in
-        Html.div [ Attr.class "enter-lobby" ]
-            [ Html.label []
-                [ Html.text "Name"
-                , Html.input [ Attr.class "user-name-input", Attr.disabled inputDisabled, Attr.value model.userName, Events.onInput UpdateUserName ] []
-                ]
-            , button model
-            , Html.div [ Attr.class socketStatusClass ] []
+    Html.div [ Attr.class "enter-lobby" ]
+        [ Html.label []
+            [ Html.text "Name"
+            , Html.input [ Attr.class "user-name-input", Attr.disabled inputDisabled, Attr.value model.userName, Events.onInput UpdateUserName ] []
             ]
+        , button model
+        , Html.div [ Attr.class socketStatusClass ] []
+        ]
 
 
 statusMessage : Model -> Html Msg
@@ -264,10 +265,11 @@ statusMessage model =
                 reconnectStatus =
                     if remainingSeconds <= 0 then
                         "Reconnecting ..."
+
                     else
-                        "Reconnecting in " ++ (toString remainingSeconds) ++ " seconds"
+                        "Reconnecting in " ++ toString remainingSeconds ++ " seconds"
             in
-                Html.div [ Attr.class "status-message" ] [ Html.text reconnectStatus ]
+            Html.div [ Attr.class "status-message" ] [ Html.text reconnectStatus ]
 
         _ ->
             Html.text ""
@@ -279,18 +281,18 @@ button model =
         buttonClass disabled =
             Attr.classList [ ( "button", True ), ( "button-disabled", disabled ) ]
     in
-        case model.state of
-            LeavingLobby ->
-                Html.button [ Attr.disabled True, buttonClass True ] [ Html.text "Leaving lobby..." ]
+    case model.state of
+        LeavingLobby ->
+            Html.button [ Attr.disabled True, buttonClass True ] [ Html.text "Leaving lobby..." ]
 
-            LeftLobby ->
-                Html.button [ Events.onClick Join, buttonClass False ] [ Html.text "Join lobby" ]
+        LeftLobby ->
+            Html.button [ Events.onClick Join, buttonClass False ] [ Html.text "Join lobby" ]
 
-            JoiningLobby ->
-                Html.button [ Attr.disabled True, buttonClass True ] [ Html.text "Joining lobby..." ]
+        JoiningLobby ->
+            Html.button [ Attr.disabled True, buttonClass True ] [ Html.text "Joining lobby..." ]
 
-            JoinedLobby ->
-                Html.button [ Events.onClick Leave, buttonClass False ] [ Html.text "Leave lobby" ]
+        JoinedLobby ->
+            Html.button [ Events.onClick Leave, buttonClass False ] [ Html.text "Leave lobby" ]
 
 
 chatUsers : Dict String (List JD.Value) -> Html Msg
@@ -332,7 +334,7 @@ composeMessage { state, composedMessage } =
                 _ ->
                     True
     in
-        Html.form [ Attr.class "send-form", Events.onSubmit SendComposedMessage ]
-            [ Html.input [ Attr.class "send-input", Attr.value composedMessage, Events.onInput UpdateComposedMessage ] []
-            , Html.button [ Attr.class "send-button", Attr.disabled cannotSend ] [ Html.text "Send" ]
-            ]
+    Html.form [ Attr.class "send-form", Events.onSubmit SendComposedMessage ]
+        [ Html.input [ Attr.class "send-input", Attr.value composedMessage, Events.onInput UpdateComposedMessage ] []
+        , Html.button [ Attr.class "send-button", Attr.disabled cannotSend ] [ Html.text "Send" ]
+        ]
