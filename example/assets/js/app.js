@@ -17,7 +17,7 @@ import * as elmPhoenix from "elm-phoenix-ports"
 
 
 const elmDiv = document.querySelector("#elm-container");
-const elmApp = elmChat.Chat.embed(elmDiv);
+const elmApp = elmChat.Elm.Chat.init({node: elmDiv});
 elmPhoenix.init(elmApp, {debug: true});
 
 // Import local files

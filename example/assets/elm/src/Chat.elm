@@ -1,5 +1,6 @@
 module Chat exposing (..)
 
+import Browser
 import Dict exposing (Dict)
 import Html exposing (Html)
 import Html.Attributes as Attr
@@ -15,9 +16,9 @@ import Phoenix.Socket as Socket exposing (AbnormalClose, Socket)
 import PhoenixPorts
 
 
-main : Program Never Model Msg
+main : Program () Model Msg
 main =
-    Html.program
+    Browser.element
         { init = init
         , update = update
         , subscriptions = subscriptions
@@ -74,8 +75,8 @@ initModel =
     }
 
 
-init : ( Model, Cmd Msg )
-init =
+init : () -> ( Model, Cmd Msg )
+init flags =
     ( initModel, Cmd.none )
 
 
@@ -243,7 +244,7 @@ enterLeaveLobby model =
                     True
 
         socketStatusClass =
-            "socket-status socket-status--" ++ (String.toLower <| toString <| model.connectionStatus)
+            "socket-status socket-status--" ++ (String.toLower <| Debug.toString <| model.connectionStatus)
     in
     Html.div [ Attr.class "enter-lobby" ]
         [ Html.label []
