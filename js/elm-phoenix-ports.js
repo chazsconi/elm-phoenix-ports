@@ -2,12 +2,10 @@ import {
   Socket
 } from "phoenix"
 
-export function init(app) {
+export function init(app, opts) {
   let socket = null;
-
-  let log = (msg, data) => {
-    //console.log(msg, data)
-  }
+  let debug = opts && opts.debug || false
+  let log = debug ? console.log : () => {}
 
   let pushHandlers = (push, channel, type, ref, onHandlers) => {
     if (onHandlers.onOk) {
