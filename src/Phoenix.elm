@@ -100,6 +100,12 @@ update ports socket channelsFn channelsModel msg model =
                         in
                         ( { model | previousChannelsModel = Just channelsModel, channelStates = updatedChannelStates }, Cmd.batch cmds, Nothing )
 
+        SocketOpened ->
+            ( model, Cmd.none, socket.onOpen )
+
+        SocketClosed params ->
+            ( model, Cmd.none, Maybe.map (\onCloseMsg -> onCloseMsg params) socket.onClose )
+
         SendPush p ->
             case ChannelStates.getJoinedChannelObj p.topic model.channelStates of
                 Nothing ->
@@ -281,6 +287,8 @@ connect ports socket parentMsg =
             , ports.channelMessage (\( topic, event, payload ) -> ChannelMessage topic event payload)
             , ports.channelError ChannelError
             , ports.pushReply parsePushReply
+            , ports.socketOpened (\_ -> SocketOpened)
+            , ports.socketClosed SocketClosed
             , Time.every tickInterval Tick
             ]
 
@@ -351,6 +359,12 @@ mapMsg func msg =
 
         Tick time ->
             Tick time
+
+        SocketOpened ->
+            SocketOpened
+
+        SocketClosed a ->
+            SocketClosed a
 
         ChannelsCreated v ->
             ChannelsCreated v

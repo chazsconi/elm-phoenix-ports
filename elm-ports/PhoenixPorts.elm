@@ -18,6 +18,8 @@ ports =
     , pushReply = pushReply
     , channelsCreated = channelsCreated
     , channelError = channelError
+    , socketOpened = socketOpened
+    , socketClosed = socketClosed
     , connectSocket = connectSocket
     , joinChannels = joinChannels
     , leaveChannel = leaveChannel
@@ -35,6 +37,12 @@ port channelsCreated : (List ( Topic, ChannelObj ) -> msg) -> Sub msg
 
 
 port channelError : (Topic -> msg) -> Sub msg
+
+
+port socketOpened : (() -> msg) -> Sub msg
+
+
+port socketClosed : (SocketCloseParams -> msg) -> Sub msg
 
 
 port connectSocket : ConnectParams -> Cmd msg

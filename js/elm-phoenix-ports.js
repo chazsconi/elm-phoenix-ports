@@ -50,6 +50,18 @@ export function init(app, opts) {
     socket = new Socket(data.endpoint, {
       params: data.params
     })
+    socket.onOpen(() => {
+      log("Socket opened", "")
+      app.ports.socketOpened.send(null)
+    })
+    socket.onClose((params) => {
+      log("Socket closed", params)
+      app.ports.socketClosed.send({
+        wasClean: params.wasClean,
+        reason: params.reason,
+        code: params.code
+      })
+    })
 
     socket.connect()
     log("Socket connected: ", socket)

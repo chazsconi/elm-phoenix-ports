@@ -16,6 +16,8 @@ type alias Event =
 type Msg msg
     = NoOp
     | Tick Time.Posix
+    | SocketOpened
+    | SocketClosed { code : Int, reason : String, wasClean : Bool }
     | SendPush (Push msg)
     | ChannelsCreated (List ( Topic, JD.Value ))
     | ChannelJoinOk Topic JD.Value

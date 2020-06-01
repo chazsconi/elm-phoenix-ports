@@ -1,12 +1,10 @@
 module Phoenix.Socket exposing
     ( Socket, AbnormalClose
-    , init, withParams, withDebug, map
+    , init, withParams, withDebug, onOpen, onClose, map
     -- TODO: Implement these
     -- , heartbeatIntervallSeconds
     -- , onAbnormalClose
-    -- , onClose
     -- , onNormalClose
-    -- , onOpen
     -- , reconnectTimer
     -- , withoutHeartbeat
     )
