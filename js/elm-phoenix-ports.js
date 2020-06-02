@@ -154,8 +154,8 @@ export function init(app, opts) {
 
     let push = channel.leave()
     pushHandlers(push, channel, "leave", null, {
-      onOk: false,
-      onError: false,
+      onOk: true,
+      onError: true,
       onTimeout: false
     })
   })

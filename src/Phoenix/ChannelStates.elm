@@ -1,4 +1,4 @@
-module Phoenix.ChannelStates exposing (ChannelObj, ChannelStates, getChannel, getJoinedChannelObj, new, setCreated, setJoined, update)
+module Phoenix.ChannelStates exposing (ChannelObj, ChannelStates, getChannel, getJoinedChannelObj, new, remove, setCreated, setJoined, update)
 
 import Dict exposing (Dict)
 import Json.Encode as JE
@@ -23,6 +23,7 @@ type ChannelState
     = Creating
     | PendingJoin ChannelObj
     | Joined ChannelObj
+    | PendingLeave
 
 
 new : ChannelStates msg
@@ -44,6 +45,9 @@ getJoinedChannelObj topic (ChannelStates internalChannels) =
 
                     Joined channelObj ->
                         Just channelObj
+
+                    PendingLeave ->
+                        Nothing
             )
 
 
@@ -80,6 +84,11 @@ setJoined topic_ channelStates =
                     other
         )
         channelStates
+
+
+setPendingLeave : Topic -> ChannelStates msg -> ChannelStates msg
+setPendingLeave topic_ channelStates =
+    updateState topic_ (\_ -> PendingLeave) channelStates
 
 
 insert : Channel msg -> ChannelStates msg -> ChannelStates msg
@@ -136,6 +145,10 @@ removedTopics topics1 channelStates =
                     Creating ->
                         ( topicAcc, objAcc )
 
+                    -- Shouldn't happen
+                    PendingLeave ->
+                        ( topicAcc, objAcc )
+
                     PendingJoin obj ->
                         ( topic :: topicAcc, obj :: objAcc )
 
@@ -151,9 +164,9 @@ addChannels channels channelStates =
     List.foldl insert channelStates channels
 
 
-removeTopics : List Topic -> ChannelStates msg -> ChannelStates msg
-removeTopics topics1 channelStates =
-    List.foldl remove channelStates topics1
+setPendingLeaveTopics : List Topic -> ChannelStates msg -> ChannelStates msg
+setPendingLeaveTopics topics_ channelStates =
+    List.foldl setPendingLeave channelStates topics_
 
 
 update : List (Channel msg) -> ChannelStates msg -> ( ChannelStates msg, List (Channel msg), List ChannelObj )
@@ -168,6 +181,6 @@ update channels channelStates =
         updatedChannelStates =
             channelStates
                 |> addChannels newChannels_
-                |> removeTopics removedTopics_
+                |> setPendingLeaveTopics removedTopics_
     in
     ( updatedChannelStates, newChannels_, removedChannelObjs )

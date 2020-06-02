@@ -234,12 +234,16 @@ internalUpdate ports socket channelsFn channelsModel msg model =
         ChannelLeaveOk topic payload ->
             case ChannelStates.getChannel topic model.channelStates of
                 Just channel ->
+                    let
+                        updatedModel =
+                            { model | channelStates = ChannelStates.remove topic model.channelStates }
+                    in
                     case channel.onLeave of
                         Nothing ->
-                            ( model, Cmd.none, [] )
+                            ( updatedModel, Cmd.none, [] )
 
                         Just onLeaveMsg ->
-                            ( model, Cmd.none, [ onLeaveMsg payload ] )
+                            ( updatedModel, Cmd.none, [ onLeaveMsg payload ] )
 
                 Nothing ->
                     ( model, Cmd.none, [] )
@@ -247,12 +251,18 @@ internalUpdate ports socket channelsFn channelsModel msg model =
         ChannelLeaveError topic payload ->
             case ChannelStates.getChannel topic model.channelStates of
                 Just channel ->
+                    let
+                        -- Not sure what to do here, or how a leave error can occur
+                        -- but the channel is removed anyway
+                        updatedModel =
+                            { model | channelStates = ChannelStates.remove topic model.channelStates }
+                    in
                     case channel.onLeaveError of
                         Nothing ->
-                            ( model, Cmd.none, [] )
+                            ( updatedModel, Cmd.none, [] )
 
                         Just onLeaveError ->
-                            ( model, Cmd.none, [ onLeaveError payload ] )
+                            ( updatedModel, Cmd.none, [ onLeaveError payload ] )
 
                 Nothing ->
                     ( model, Cmd.none, [] )
