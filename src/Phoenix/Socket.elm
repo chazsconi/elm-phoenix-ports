@@ -1,11 +1,9 @@
 module Phoenix.Socket exposing
     ( Socket, AbnormalClose
-    , init, withParams, withDebug, onOpen, onClose, map
+    , init, withParams, reconnectTimer, withDebug, onAbnormalClose, onOpen, onClose, map
     -- TODO: Implement these
     -- , heartbeatIntervallSeconds
-    -- , onAbnormalClose
     -- , onNormalClose
-    -- , reconnectTimer
     -- , withoutHeartbeat
     )
 
@@ -25,7 +23,7 @@ module Phoenix.Socket exposing
 
 
 type alias Time =
-    Float
+    Int
 
 
 {-| Representation of a Socket connection
@@ -47,7 +45,7 @@ type alias PhoenixSocket msg =
     , params : List ( String, String )
     , heartbeatIntervall : Time
     , withoutHeartbeat : Bool
-    , reconnectTimer : Int -> Float
+    , reconnectTimer : Int -> Int
     , debug : Bool
     , onOpen : Maybe msg
     , onClose : Maybe ({ code : Int, reason : String, wasClean : Bool } -> msg)
@@ -95,7 +93,7 @@ withParams params socket =
 -}
 heartbeatIntervallSeconds : Int -> Socket msg -> Socket msg
 heartbeatIntervallSeconds intervall socket =
-    { socket | heartbeatIntervall = toFloat intervall * 1000 }
+    { socket | heartbeatIntervall = intervall * 1000 }
 
 
 {-| The client regularly sends a heartbeat to the sever. With this function you can disable the heartbeat.
@@ -121,7 +119,7 @@ withoutHeartbeat socket =
 With this function you can specify a custom strategy.
 
 -}
-reconnectTimer : (Int -> Time) -> Socket msg -> Socket msg
+reconnectTimer : (Int -> Int) -> Socket msg -> Socket msg
 reconnectTimer timerFunc socket =
     { socket | reconnectTimer = timerFunc }
 
@@ -169,13 +167,13 @@ onClose onClose_ socket =
     { socket | onClose = Just onClose_ }
 
 
-defaultReconnectTimer : Int -> Time
+defaultReconnectTimer : Int -> Int
 defaultReconnectTimer failedAttempts =
     if failedAttempts < 1 then
         0
 
     else
-        toFloat (min 15000 (1000 * failedAttempts))
+        min 15000 (1000 * failedAttempts)
 
 
 {-| Composes each callback with the function `a -> b`.
