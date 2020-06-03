@@ -20,7 +20,7 @@ type alias OnHandlers =
 
 
 type alias JoinParams =
-    { topic : Topic, payload : JE.Value, onHandlers : OnHandlers }
+    { topic : Topic, payload : JE.Value, onHandlers : OnHandlers, presence : Bool }
 
 
 type alias PushParams =
@@ -39,6 +39,10 @@ type alias SocketCloseParams =
     { code : Int, reason : String, wasClean : Bool }
 
 
+type alias PresenceUpdate =
+    { eventName : String, topic : Topic, presences : List ( String, List JE.Value ) }
+
+
 {-| Functions that need to implemented by Ports
 -}
 type alias Ports msg =
@@ -48,6 +52,7 @@ type alias Ports msg =
     , channelError : (Topic -> msg) -> Sub msg
     , socketOpened : (() -> msg) -> Sub msg
     , socketClosed : (SocketCloseParams -> msg) -> Sub msg
+    , presenceUpdated : (PresenceUpdate -> msg) -> Sub msg
     , connectSocket : ConnectParams -> Cmd msg
     , joinChannels : List JoinParams -> Cmd msg
     , leaveChannel : ChannelObj -> Cmd msg

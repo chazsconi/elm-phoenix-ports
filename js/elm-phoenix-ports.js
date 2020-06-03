@@ -1,5 +1,6 @@
 import {
-  Socket
+  Socket,
+  Presence
 } from "phoenix"
 
 export function init(app, opts) {
@@ -41,6 +42,46 @@ export function init(app, opts) {
     })
   }
 
+  let presenceHandlers = (channel) => {
+    let presence = new Presence(channel)
+
+    let logAndSend = (eventName, presences) => {
+      let payload = {
+        eventName: eventName,
+        topic: channel.topic,
+        presences: presences
+      }
+      log("Presence event", payload)
+      app.ports.presenceUpdated.send(payload)
+    }
+
+    // Detect user joining
+    presence.onJoin((id, current, {
+      metas: metas
+    }) => {
+      logAndSend("joined", [
+        [id, metas]
+      ])
+    })
+
+    // detect if user has left
+    presence.onLeave((id, current, {
+      metas: metas
+    }) => {
+      logAndSend("left", [
+        [id, metas]
+      ])
+    })
+
+    // receive presence data from server
+    presence.onSync(() => {
+      let presences = presence.list((id, {
+        metas: metas
+      }) => [id, metas])
+      logAndSend("synced", presences)
+    })
+  }
+
   app.ports.connectSocket.subscribe(data => {
     log("connect socket: ", {
       endpoint: data.endpoint,
@@ -75,7 +116,8 @@ export function init(app, opts) {
         log("joinChannel: ", {
           topic: data.topic,
           payload: data.payload,
-          onHandlers: data.onHandlers
+          onHandlers: data.onHandlers,
+          presence: data.presence
         })
 
         let channel = socket.channel(data.topic, data.payload)
@@ -89,6 +131,10 @@ export function init(app, opts) {
           log("Error on channel", channel.topic)
           app.ports.channelError.send(channel.topic)
         })
+
+        if (data.presence) {
+          presenceHandlers(channel)
+        }
 
         let push = channel.join()
         pushHandlers(push, channel, "join", null, data.onHandlers)

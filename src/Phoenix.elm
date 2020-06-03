@@ -101,6 +101,7 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                                                 { topic = c.topic
                                                 , payload = Maybe.withDefault JE.null c.payload
                                                 , onHandlers = { onOk = c.onJoin /= Nothing, onError = c.onJoinError /= Nothing, onTimeout = False }
+                                                , presence = c.presence /= Nothing
                                                 }
                                             )
                                             newChannels
@@ -282,6 +283,27 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                 Nothing ->
                     ( model, Cmd.none, [] )
 
+        PresenceUpdated event topic presences ->
+            let
+                handler =
+                    case event of
+                        Synced ->
+                            .onChange
+
+                        Joined ->
+                            .onJoins
+
+                        Left ->
+                            .onLeaves
+
+                newMsg =
+                    ChannelStates.getChannel topic model.channelStates
+                        |> Maybe.andThen .presence
+                        |> Maybe.andThen handler
+                        |> Maybe.map (\onChangeMsg -> onChangeMsg presences)
+            in
+            ( model, Cmd.none, maybeToList newMsg )
+
 
 maybeToList : Maybe a -> List a
 maybeToList m =
@@ -313,6 +335,7 @@ connect ports socket parentMsg =
             , ports.pushReply parsePushReply
             , ports.socketOpened (\_ -> SocketOpened)
             , ports.socketClosed SocketClosed
+            , ports.presenceUpdated parsePresenceUpdated
             , Time.every tickInterval Tick
             ]
 
@@ -330,6 +353,26 @@ pushChannel ports pushRef channelObj p =
             , onTimeout = True
             }
         }
+
+
+parsePresenceUpdated : PortsAPI.PresenceUpdate -> Msg msg
+parsePresenceUpdated { topic, eventName, presences } =
+    let
+        presenceDict =
+            Dict.fromList presences
+    in
+    case eventName of
+        "synced" ->
+            PresenceUpdated Synced topic presenceDict
+
+        "joined" ->
+            PresenceUpdated Joined topic presenceDict
+
+        "left" ->
+            PresenceUpdated Left topic presenceDict
+
+        _ ->
+            NoOp
 
 
 parsePushReply : PortsAPI.PushReply -> Msg msg
@@ -416,3 +459,6 @@ mapMsg func msg =
 
         ChannelError a ->
             ChannelError a
+
+        PresenceUpdated a b c ->
+            PresenceUpdated a b c

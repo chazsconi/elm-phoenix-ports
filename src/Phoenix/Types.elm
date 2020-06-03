@@ -13,6 +13,12 @@ type alias Event =
     String
 
 
+type PresenceEvent
+    = Synced
+    | Joined
+    | Left
+
+
 type Msg msg
     = NoOp
     | Tick Time.Posix
@@ -28,6 +34,7 @@ type Msg msg
     | ChannelPushError Topic PushRef JD.Value
     | ChannelMessage Topic Event JD.Value
     | ChannelError Topic
+    | PresenceUpdated PresenceEvent Topic (Dict String (List JD.Value))
 
 
 type SocketState

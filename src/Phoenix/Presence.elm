@@ -1,11 +1,6 @@
 module Phoenix.Presence exposing
     ( Presence
-    , map
-    -- TODO: Implement presence
-    -- , create
-    -- , onChange
-    -- , onJoins
-    -- , onLeaves
+    , create, onChange, onJoins, onLeaves, map
     )
 
 {-| Presence is an extension for channels to support the Presence feature of Phoenix.

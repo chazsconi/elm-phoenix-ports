@@ -20,6 +20,7 @@ ports =
     , channelError = channelError
     , socketOpened = socketOpened
     , socketClosed = socketClosed
+    , presenceUpdated = presenceUpdated
     , connectSocket = connectSocket
     , joinChannels = joinChannels
     , leaveChannel = leaveChannel
@@ -43,6 +44,9 @@ port socketOpened : (() -> msg) -> Sub msg
 
 
 port socketClosed : (SocketCloseParams -> msg) -> Sub msg
+
+
+port presenceUpdated : (PresenceUpdate -> msg) -> Sub msg
 
 
 port connectSocket : ConnectParams -> Cmd msg
