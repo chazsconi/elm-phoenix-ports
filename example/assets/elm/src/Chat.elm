@@ -97,19 +97,19 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
         UpdateUserName name ->
-            { model | userName = name } ! []
+            ( { model | userName = name }, Cmd.none )
 
         UpdateState state ->
-            { model | state = state } ! []
+            ( { model | state = state }, Cmd.none )
 
         UpdateComposedMessage composedMessage ->
-            { model | composedMessage = composedMessage } ! []
+            ( { model | composedMessage = composedMessage }, Cmd.none )
 
         Join ->
-            { model | isActive = True } ! []
+            ( { model | isActive = True }, Cmd.none )
 
         Leave ->
-            { model | isActive = False, presence = Dict.empty } ! []
+            ( { model | isActive = False, presence = Dict.empty }, Cmd.none )
 
         SendComposedMessage ->
             let
@@ -117,34 +117,36 @@ update message model =
                     Push.init "room:lobby" "new_msg"
                         |> Push.withPayload (JE.object [ ( "msg", JE.string model.composedMessage ) ])
             in
-            { model | composedMessage = "" } ! [ Phoenix.push lobbySocket push ]
+            ( { model | composedMessage = "" }, Phoenix.push lobbySocket push )
 
         NewMsg payload ->
             case JD.decodeValue decodeNewMsg payload of
                 Ok msg ->
-                    { model | messages = List.append model.messages [ msg ] } ! []
+                    ( { model | messages = List.append model.messages [ msg ] }, Cmd.none )
 
                 Err err ->
-                    model ! []
+                    ( model, Cmd.none )
 
         UpdatePresence presenceState ->
-            { model | presence = Debug.log "presenceState " presenceState }
-                ! []
+            ( { model | presence = Debug.log "presenceState " presenceState }
+            , Cmd.none
+            )
 
         SocketClosedAbnormally abnormalClose ->
-            { model
+            ( { model
                 | connectionStatus =
                     ScheduledReconnect
                         { time = roundDownToSecond (model.currentTime + abnormalClose.reconnectWait)
                         }
-            }
-                ! []
+              }
+            , Cmd.none
+            )
 
         ConnectionStatusChanged connectionStatus ->
-            { model | connectionStatus = connectionStatus } ! []
+            ( { model | connectionStatus = connectionStatus }, Cmd.none )
 
         Tick time ->
-            { model | currentTime = time } ! []
+            ( { model | currentTime = time }, Cmd.none )
 
 
 roundDownToSecond : Time -> Time
@@ -202,7 +204,7 @@ lobby userName =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch [ phoenixSubscription model, Time.every Time.second Tick ]
+    Sub.batch [ phoenixSubscription model, Time.every 1000 Tick ]
 
 
 phoenixSubscription model =
