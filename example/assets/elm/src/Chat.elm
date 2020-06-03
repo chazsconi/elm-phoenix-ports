@@ -11,7 +11,6 @@ import Phoenix.Channel as Channel exposing (Channel)
 import Phoenix.Presence as Presence exposing (Presence)
 import Phoenix.Push as Push
 import Phoenix.Socket as Socket exposing (AbnormalClose, Socket)
-import Time exposing (Time)
 
 
 main : Program Never Model Msg
@@ -36,14 +35,12 @@ type alias Model =
     , messages : List Message
     , composedMessage : String
     , connectionStatus : ConnectionStatus
-    , currentTime : Time
     }
 
 
 type ConnectionStatus
     = Connected
     | Disconnected
-    | ScheduledReconnect { time : Time }
 
 
 type State
@@ -66,7 +63,6 @@ initModel =
     , presence = Dict.empty
     , composedMessage = ""
     , connectionStatus = Disconnected
-    , currentTime = 0
     }
 
 
@@ -88,9 +84,7 @@ type Msg
     | NewMsg JD.Value
     | UpdatePresence (Dict String (List JD.Value))
     | SendComposedMessage
-    | SocketClosedAbnormally AbnormalClose
     | ConnectionStatusChanged ConnectionStatus
-    | Tick Time
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -132,26 +126,8 @@ update message model =
             , Cmd.none
             )
 
-        SocketClosedAbnormally abnormalClose ->
-            ( { model
-                | connectionStatus =
-                    ScheduledReconnect
-                        { time = roundDownToSecond (model.currentTime + abnormalClose.reconnectWait)
-                        }
-              }
-            , Cmd.none
-            )
-
         ConnectionStatusChanged connectionStatus ->
             ( { model | connectionStatus = connectionStatus }, Cmd.none )
-
-        Tick time ->
-            ( { model | currentTime = time }, Cmd.none )
-
-
-roundDownToSecond : Time -> Time
-roundDownToSecond ms =
-    (ms / 1000) |> truncate |> (*) 1000 |> toFloat
 
 
 
@@ -181,8 +157,6 @@ socket =
     Socket.init lobbySocket
         |> Socket.onOpen (ConnectionStatusChanged Connected)
         |> Socket.onClose (\_ -> ConnectionStatusChanged Disconnected)
-        |> Socket.onAbnormalClose SocketClosedAbnormally
-        |> Socket.reconnectTimer (\backoffIteration -> (backoffIteration + 1) * 5000 |> toFloat)
 
 
 lobby : String -> Channel Msg
@@ -204,7 +178,7 @@ lobby userName =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch [ phoenixSubscription model, Time.every 1000 Tick ]
+    Sub.batch [ phoenixSubscription model ]
 
 
 phoenixSubscription model =
@@ -228,7 +202,6 @@ view model =
         , chatUsers model.presence
         , chatMessages model.messages
         , composeMessage model
-        , statusMessage model
         ]
 
 
@@ -254,27 +227,6 @@ enterLeaveLobby model =
         , button model
         , Html.div [ Attr.class socketStatusClass ] []
         ]
-
-
-statusMessage : Model -> Html Msg
-statusMessage model =
-    case model.connectionStatus of
-        ScheduledReconnect { time } ->
-            let
-                remainingSeconds =
-                    truncate <| (time - model.currentTime) / 1000
-
-                reconnectStatus =
-                    if remainingSeconds <= 0 then
-                        "Reconnecting ..."
-
-                    else
-                        "Reconnecting in " ++ toString remainingSeconds ++ " seconds"
-            in
-            Html.div [ Attr.class "status-message" ] [ Html.text reconnectStatus ]
-
-        _ ->
-            Html.text ""
 
 
 button : Model -> Html Msg
