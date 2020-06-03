@@ -111,7 +111,7 @@ update message model =
                     Push.init "room:lobby" "new_msg"
                         |> Push.withPayload (JE.object [ ( "msg", JE.string model.composedMessage ) ])
             in
-            ( { model | composedMessage = "" }, Phoenix.push lobbySocket push )
+            ( { model | composedMessage = "" }, Phoenix.push endpoint push )
 
         NewMsg payload ->
             case JD.decodeValue decodeNewMsg payload of
@@ -145,8 +145,8 @@ decodeNewMsg =
 -- SUBSCRIPTIONS
 
 
-lobbySocket : String
-lobbySocket =
+endpoint : String
+endpoint =
     "ws://localhost:4000/socket/websocket"
 
 
@@ -154,9 +154,17 @@ lobbySocket =
 -}
 socket : Socket Msg
 socket =
-    Socket.init lobbySocket
+    Socket.init endpoint
         |> Socket.onOpen (ConnectionStatusChanged Connected)
         |> Socket.onClose (\_ -> ConnectionStatusChanged Disconnected)
+
+
+channels { isActive, userName } =
+    if isActive then
+        [ lobby userName ]
+
+    else
+        []
 
 
 lobby : String -> Channel Msg
@@ -182,12 +190,7 @@ subscriptions model =
 
 
 phoenixSubscription model =
-    Phoenix.connect socket <|
-        if model.isActive then
-            [ lobby model.userName ]
-
-        else
-            []
+    Phoenix.connect socket <| channels model
 
 
 
