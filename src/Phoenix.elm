@@ -46,8 +46,8 @@ push config p =
 
 {-| Update the model
 -}
-update : Ports msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
-update ports socket channelsFn channelsModel msg model =
+update : Config msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
+update config socket channelsFn channelsModel msg model =
     let
         _ =
             if socket.debug then
@@ -57,15 +57,20 @@ update ports socket channelsFn channelsModel msg model =
                 ( msg, model )
 
         ( updateModel, cmd, parentMsgs ) =
-            internalUpdate ports socket channelsFn channelsModel msg model
+            case config.ports of
+                Nothing ->
+                    ( model, Cmd.none, [] )
+
+                Just ports ->
+                    internalUpdate ports socket channelsFn channelsModel msg model
 
         allCmd =
-            Cmd.batch <| cmd :: List.map (\parentMsg -> Task.perform (\_ -> parentMsg) (Task.succeed Ok)) parentMsgs
+            Cmd.batch <| Cmd.map config.parentMsg cmd :: List.map (\parentMsg -> Task.perform (\_ -> parentMsg) (Task.succeed Ok)) parentMsgs
     in
     ( updateModel, allCmd )
 
 
-internalUpdate : Ports msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg, List msg )
+internalUpdate : Ports msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd (Msg msg), List msg )
 internalUpdate ports socket channelsFn channelsModel msg model =
     case msg of
         NoOp ->
@@ -328,8 +333,8 @@ maybeToList m =
 
 {-| Connect the socket
 -}
-connect : Ports (Msg msg) -> Config msg -> Sub msg
-connect ports config =
+connect : Config msg -> Sub msg
+connect config =
     let
         tickInterval =
             if config.debug then
@@ -338,20 +343,25 @@ connect ports config =
             else
                 100
     in
-    Sub.map config.parentMsg <|
-        Sub.batch
-            [ ports.channelsCreated ChannelsCreated
-            , ports.channelMessage (\( topic, event, payload ) -> ChannelMessage topic event payload)
-            , ports.channelError ChannelError
-            , ports.pushReply parsePushReply
-            , ports.socketOpened (\_ -> SocketOpened)
-            , ports.socketClosed SocketClosed
-            , ports.presenceUpdated parsePresenceUpdated
-            , Time.every tickInterval Tick
-            ]
+    case config.ports of
+        Nothing ->
+            Sub.none
+
+        Just ports ->
+            Sub.map config.parentMsg <|
+                Sub.batch
+                    [ ports.channelsCreated ChannelsCreated
+                    , ports.channelMessage (\( topic, event, payload ) -> ChannelMessage topic event payload)
+                    , ports.channelError ChannelError
+                    , ports.pushReply parsePushReply
+                    , ports.socketOpened (\_ -> SocketOpened)
+                    , ports.socketClosed SocketClosed
+                    , ports.presenceUpdated parsePresenceUpdated
+                    , Time.every tickInterval Tick
+                    ]
 
 
-pushChannel : Ports msg -> PushRef -> ChannelObj -> Push msg -> Cmd msg
+pushChannel : Ports msg -> PushRef -> ChannelObj -> Push msg -> Cmd (Msg msg)
 pushChannel ports pushRef channelObj p =
     ports.pushChannel
         { ref = pushRef

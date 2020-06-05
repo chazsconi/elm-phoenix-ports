@@ -46,15 +46,15 @@ type alias PresenceUpdate =
 {-| Functions that need to implemented by Ports
 -}
 type alias Ports msg =
-    { channelMessage : (( Topic, String, JE.Value ) -> msg) -> Sub msg
-    , pushReply : (PushReply -> msg) -> Sub msg
-    , channelsCreated : (List ( Topic, ChannelObj ) -> msg) -> Sub msg
-    , channelError : (Topic -> msg) -> Sub msg
-    , socketOpened : (() -> msg) -> Sub msg
-    , socketClosed : (SocketCloseParams -> msg) -> Sub msg
-    , presenceUpdated : (PresenceUpdate -> msg) -> Sub msg
-    , connectSocket : ConnectParams -> Cmd msg
-    , joinChannels : List JoinParams -> Cmd msg
-    , leaveChannel : ChannelObj -> Cmd msg
-    , pushChannel : PushParams -> Cmd msg
+    { channelMessage : (( Topic, String, JE.Value ) -> Msg msg) -> Sub (Msg msg)
+    , pushReply : (PushReply -> Msg msg) -> Sub (Msg msg)
+    , channelsCreated : (List ( Topic, ChannelObj ) -> Msg msg) -> Sub (Msg msg)
+    , channelError : (Topic -> Msg msg) -> Sub (Msg msg)
+    , socketOpened : (() -> Msg msg) -> Sub (Msg msg)
+    , socketClosed : (SocketCloseParams -> Msg msg) -> Sub (Msg msg)
+    , presenceUpdated : (PresenceUpdate -> Msg msg) -> Sub (Msg msg)
+    , connectSocket : ConnectParams -> Cmd (Msg msg)
+    , joinChannels : List JoinParams -> Cmd (Msg msg)
+    , leaveChannel : ChannelObj -> Cmd (Msg msg)
+    , pushChannel : PushParams -> Cmd (Msg msg)
     }
