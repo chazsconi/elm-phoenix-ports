@@ -37,9 +37,9 @@ new =
 
 {-| Push an event to a channel
 -}
-push : String -> (Msg msg -> msg) -> Push msg -> Cmd msg
-push endpoint parentMsg p =
-    Cmd.map parentMsg <|
+push : Socket msg -> Push msg -> Cmd msg
+push socket p =
+    Cmd.map socket.parentMsg <|
         Task.perform (\_ -> SendPush p) (Task.succeed Ok)
 
 
@@ -327,8 +327,8 @@ maybeToList m =
 
 {-| Connect the socket
 -}
-connect : Ports (Msg msg) -> Socket msg -> (Msg msg -> msg) -> Sub msg
-connect ports socket parentMsg =
+connect : Ports (Msg msg) -> Socket msg -> Sub msg
+connect ports socket =
     let
         tickInterval =
             if socket.debug then
@@ -337,7 +337,7 @@ connect ports socket parentMsg =
             else
                 100
     in
-    Sub.map parentMsg <|
+    Sub.map socket.parentMsg <|
         Sub.batch
             [ ports.channelsCreated ChannelsCreated
             , ports.channelMessage (\( topic, event, payload ) -> ChannelMessage topic event payload)

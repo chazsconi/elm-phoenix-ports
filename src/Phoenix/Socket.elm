@@ -21,6 +21,8 @@ module Phoenix.Socket exposing
 
 -}
 
+import Phoenix.Types as Types exposing (Msg)
+
 
 type alias Time =
     Int
@@ -42,6 +44,7 @@ type alias AbnormalClose =
 
 type alias PhoenixSocket msg =
     { endpoint : String
+    , parentMsg : Msg msg -> msg
     , params : List ( String, String )
     , heartbeatIntervall : Time
     , withoutHeartbeat : Bool
@@ -59,9 +62,10 @@ type alias PhoenixSocket msg =
     init "ws://localhost:4000/socket/websocket"
 
 -}
-init : String -> Socket msg
-init endpoint =
+init : String -> (Msg msg -> msg) -> Socket msg
+init endpoint parentMsg =
     { endpoint = endpoint
+    , parentMsg = parentMsg
     , params = []
     , heartbeatIntervall = 30 * 1000
     , withoutHeartbeat = False
@@ -176,11 +180,12 @@ defaultReconnectTimer failedAttempts =
         min 15000 (1000 * failedAttempts)
 
 
-{-| Composes each callback with the function `a -> b`.
+{-| Composes each callback with the function `a -> b` and the parentMsg `b`
 -}
-map : (a -> b) -> Socket a -> Socket b
-map func socket =
+map : (a -> b) -> (Msg b -> b) -> Socket a -> Socket b
+map func newParentMsg socket =
     { endpoint = socket.endpoint
+    , parentMsg = newParentMsg
     , params = socket.params
     , heartbeatIntervall = socket.heartbeatIntervall
     , withoutHeartbeat = socket.withoutHeartbeat
