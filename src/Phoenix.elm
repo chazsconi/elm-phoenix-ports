@@ -14,6 +14,7 @@ import Json.Decode as JD
 import Json.Encode as JE
 import Phoenix.Channel exposing (Channel, Topic)
 import Phoenix.ChannelStates as ChannelStates exposing (ChannelObj)
+import Phoenix.Config exposing (Config)
 import Phoenix.PortsAPI as PortsAPI exposing (Ports)
 import Phoenix.Push exposing (Push)
 import Phoenix.Pushes as Pushes exposing (PushRef)
@@ -37,9 +38,9 @@ new =
 
 {-| Push an event to a channel
 -}
-push : String -> (Msg msg -> msg) -> Push msg -> Cmd msg
-push endpoint parentMsg p =
-    Cmd.map parentMsg <|
+push : Config msg -> Push msg -> Cmd msg
+push config p =
+    Cmd.map config.parentMsg <|
         Task.perform (\_ -> SendPush p) (Task.succeed Ok)
 
 
@@ -327,17 +328,17 @@ maybeToList m =
 
 {-| Connect the socket
 -}
-connect : Ports (Msg msg) -> Socket msg -> (Msg msg -> msg) -> Sub msg
-connect ports socket parentMsg =
+connect : Ports (Msg msg) -> Config msg -> Sub msg
+connect ports config =
     let
         tickInterval =
-            if socket.debug then
+            if config.debug then
                 1000
 
             else
                 100
     in
-    Sub.map parentMsg <|
+    Sub.map config.parentMsg <|
         Sub.batch
             [ ports.channelsCreated ChannelsCreated
             , ports.channelMessage (\( topic, event, payload ) -> ChannelMessage topic event payload)
