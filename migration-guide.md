@@ -13,9 +13,9 @@ Remove `/websocket` from end of endpoint as `phoenix.js` adds this itself
 
 ## Change to `Phoenix.connect`
 This no longer takes the socket and a list of channels to generate the subscription.
-Instead it takes the following:
+Instead it takes `phoenixConfig` (as described in the README)
 ```elm
-Phoenix.connect PhoenixPorts.ports socket PhoenixMsg
+Phoenix.connect phoenixConfig
 ```
 
 ## Change to `Phoenix.push`
@@ -25,10 +25,9 @@ push : String -> Push msg -> Cmd msg
 ```
 to
 ```elm
-push : String -> (Msg msg -> msg) -> Push msg -> Cmd msg
+push : Phoenix.Config msg -> Push msg -> Cmd msg
 ```
-
-As it takes the `PhoenixMsg` as a parameter as the command needs to be mapped.
+Therefore change your push functions:
 
 Before:
 ```elm
@@ -36,5 +35,8 @@ Before:
 ```
 to:
 ```elm
-  Phoenix.push endpoint PhoenixMsg myPush
+  Phoenix.push phoenixConfig myPush
 ```
+## Reconnection logic
+If the connection terminates abnormally, reconnection is automatically handled
+by the `phoenix.js` so there is no need to do this explicitly.
