@@ -1,4 +1,7 @@
-module Phoenix exposing (connect, new, push, update, mapMsg)
+module Phoenix exposing
+    ( connect, new, push, update, mapMsg
+    , Model, Msg
+    )
 
 {-| Entrypoint for Phoenix
 
@@ -13,13 +16,13 @@ import Dict
 import Json.Decode as JD
 import Json.Encode as JE
 import Phoenix.Channel exposing (Channel, Topic)
-import Phoenix.ChannelStates as ChannelStates exposing (ChannelObj)
 import Phoenix.Config exposing (Config)
+import Phoenix.Internal.ChannelStates as ChannelStates exposing (ChannelObj)
+import Phoenix.Internal.Pushes as Pushes exposing (PushRef)
+import Phoenix.Internal.Types exposing (Model, Msg(..), PresenceEvent(..), SocketState(..))
 import Phoenix.PortsAPI as PortsAPI exposing (Ports)
 import Phoenix.Push exposing (Push)
-import Phoenix.Pushes as Pushes exposing (PushRef)
 import Phoenix.Socket exposing (Socket)
-import Phoenix.Types exposing (..)
 import Task
 import Time
 
@@ -27,6 +30,14 @@ import Time
 
 -- Based on: https://sascha.timme.xyz/elm-phoenix/
 -- Code:  https://github.com/saschatimme/elm-phoenix
+
+
+type alias Msg msg =
+    Phoenix.Internal.Types.Msg msg
+
+
+type alias Model msg channelsModel =
+    Phoenix.Internal.Types.Model msg channelsModel
 
 
 {-| Initialise the model
@@ -50,7 +61,7 @@ update : Config msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> ch
 update config socket channelsFn channelsModel msg model =
     let
         _ =
-            if socket.debug then
+            if config.debug then
                 Debug.log "msg model" ( msg, model )
 
             else

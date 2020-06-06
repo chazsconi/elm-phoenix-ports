@@ -1,4 +1,4 @@
-module Phoenix.Pushes exposing (PushRef, Pushes, insert, insertQueuedByTopics, new, pop, queue)
+module Phoenix.Internal.Pushes exposing (PushRef, Pushes, insert, insertQueuedByTopics, new, pop, queue)
 
 import Dict exposing (Dict)
 import Phoenix.Channel exposing (Topic)

@@ -2,8 +2,8 @@ module Phoenix.PortsAPI exposing (..)
 
 import Json.Encode as JE
 import Phoenix.Channel exposing (Topic)
-import Phoenix.ChannelStates exposing (ChannelObj)
-import Phoenix.Types exposing (..)
+import Phoenix.Internal.ChannelStates exposing (ChannelObj)
+import Phoenix.Internal.Types exposing (Event, Msg)
 
 
 {-| Defines the API for the ports that are required to interface with JS

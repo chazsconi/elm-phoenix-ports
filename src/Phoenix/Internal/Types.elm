@@ -1,11 +1,11 @@
-module Phoenix.Types exposing (..)
+module Phoenix.Internal.Types exposing (..)
 
 import Dict exposing (Dict)
 import Json.Decode as JD
 import Phoenix.Channel exposing (Topic)
-import Phoenix.ChannelStates exposing (..)
+import Phoenix.Internal.ChannelStates exposing (ChannelStates)
+import Phoenix.Internal.Pushes exposing (PushRef, Pushes)
 import Phoenix.Push exposing (Push)
-import Phoenix.Pushes exposing (PushRef, Pushes)
 import Time
 
 

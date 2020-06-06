@@ -1,4 +1,4 @@
-module Phoenix.ChannelStates exposing (ChannelObj, ChannelStates, getChannel, getJoinedChannelObj, new, remove, setCreated, setJoined, update)
+module Phoenix.Internal.ChannelStates exposing (ChannelObj, ChannelStates, getChannel, getJoinedChannelObj, new, remove, setCreated, setJoined, update)
 
 import Dict exposing (Dict)
 import Json.Encode as JE

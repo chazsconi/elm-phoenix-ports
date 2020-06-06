@@ -2,7 +2,7 @@ port module PhoenixPorts exposing (ports)
 
 import Json.Encode as JE
 import Phoenix.Channel exposing (Topic)
-import Phoenix.ChannelStates exposing (ChannelObj)
+import Phoenix.Internal.ChannelStates exposing (ChannelObj)
 import Phoenix.PortsAPI exposing (..)
 
 
