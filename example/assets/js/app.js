@@ -13,10 +13,12 @@
 // to also remove its path from "config.paths.watched".
 import '../css/app.css'
 import * as elmChat from "../elm/src/Chat.elm"
+import * as elmPhoenix from "elm-phoenix-ports"
 
 
 const elmDiv = document.querySelector("#elm-container");
 const elmApp = elmChat.Chat.embed(elmDiv);
+elmPhoenix.init(elmApp, {debug: true});
 
 // Import local files
 //

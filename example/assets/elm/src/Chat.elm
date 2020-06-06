@@ -8,9 +8,11 @@ import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Phoenix
 import Phoenix.Channel as Channel exposing (Channel)
+import Phoenix.Config
 import Phoenix.Presence as Presence exposing (Presence)
 import Phoenix.Push as Push
 import Phoenix.Socket as Socket exposing (AbnormalClose, Socket)
+import PhoenixPorts
 
 
 main : Program Never Model Msg
@@ -35,6 +37,7 @@ type alias Model =
     , messages : List Message
     , composedMessage : String
     , connectionStatus : ConnectionStatus
+    , phoenixModel : Phoenix.Model Msg ChannelModel
     }
 
 
@@ -54,6 +57,10 @@ type Message
     = Message { userName : String, message : String }
 
 
+type alias ChannelModel =
+    { isActive : Bool, userName : String }
+
+
 initModel : Model
 initModel =
     { userName = "User1"
@@ -63,6 +70,7 @@ initModel =
     , presence = Dict.empty
     , composedMessage = ""
     , connectionStatus = Disconnected
+    , phoenixModel = Phoenix.new
     }
 
 
@@ -85,6 +93,7 @@ type Msg
     | UpdatePresence (Dict String (List JD.Value))
     | SendComposedMessage
     | ConnectionStatusChanged ConnectionStatus
+    | PhoenixMsg (Phoenix.Msg Msg)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -111,7 +120,7 @@ update message model =
                     Push.init "room:lobby" "new_msg"
                         |> Push.withPayload (JE.object [ ( "msg", JE.string model.composedMessage ) ])
             in
-            ( { model | composedMessage = "" }, Phoenix.push endpoint push )
+            ( { model | composedMessage = "" }, Phoenix.push phoenixConfig push )
 
         NewMsg payload ->
             case JD.decodeValue decodeNewMsg payload of
@@ -129,6 +138,16 @@ update message model =
         ConnectionStatusChanged connectionStatus ->
             ( { model | connectionStatus = connectionStatus }, Cmd.none )
 
+        PhoenixMsg phoenixMsg ->
+            let
+                channelModel =
+                    { isActive = model.isActive, userName = model.userName }
+
+                ( phoenixModel, cmd ) =
+                    Phoenix.update phoenixConfig socket channels channelModel phoenixMsg model.phoenixModel
+            in
+            ( { model | phoenixModel = phoenixModel }, cmd )
+
 
 
 -- Decoder
@@ -145,9 +164,13 @@ decodeNewMsg =
 -- SUBSCRIPTIONS
 
 
+phoenixConfig =
+    Phoenix.Config.new PhoenixMsg PhoenixPorts.ports
+
+
 endpoint : String
 endpoint =
-    "ws://localhost:4000/socket/websocket"
+    "ws://localhost:4000/socket"
 
 
 {-| Initialize a socket with the default heartbeat intervall of 30 seconds
@@ -190,7 +213,7 @@ subscriptions model =
 
 
 phoenixSubscription model =
-    Phoenix.connect socket <| channels model
+    Phoenix.connect phoenixConfig
 
 
 
