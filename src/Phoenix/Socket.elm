@@ -1,6 +1,6 @@
 module Phoenix.Socket exposing
     ( Socket, AbnormalClose
-    , init, withParams, reconnectTimer, withDebug, onAbnormalClose, onOpen, onClose, map
+    , init, withParams, reconnectTimer, onAbnormalClose, onOpen, onClose, map
     -- TODO: Implement these
     -- , heartbeatIntervallSeconds
     -- , onNormalClose
@@ -46,7 +46,6 @@ type alias PhoenixSocket msg =
     , heartbeatIntervall : Time
     , withoutHeartbeat : Bool
     , reconnectTimer : Int -> Int
-    , debug : Bool
     , onOpen : Maybe msg
     , onClose : Maybe ({ code : Int, reason : String, wasClean : Bool } -> msg)
     , onAbnormalClose : Maybe (AbnormalClose -> msg)
@@ -66,7 +65,6 @@ init endpoint =
     , heartbeatIntervall = 30 * 1000
     , withoutHeartbeat = False
     , reconnectTimer = defaultReconnectTimer
-    , debug = False
     , onOpen = Nothing
     , onClose = Nothing
     , onAbnormalClose = Nothing
@@ -124,13 +122,6 @@ reconnectTimer timerFunc socket =
     { socket | reconnectTimer = timerFunc }
 
 
-{-| Enable debug logs for the socket. Every incoming and outgoing message will be printed.
--}
-withDebug : Socket msg -> Socket msg
-withDebug socket =
-    { socket | debug = True }
-
-
 {-| Set a callback which will be called if the socket connection gets open.
 -}
 onOpen : msg -> Socket msg -> Socket msg
@@ -185,7 +176,6 @@ map func socket =
     , heartbeatIntervall = socket.heartbeatIntervall
     , withoutHeartbeat = socket.withoutHeartbeat
     , reconnectTimer = socket.reconnectTimer
-    , debug = socket.debug
     , onOpen = Maybe.map func socket.onOpen
     , onClose = Maybe.map ((<<) func) socket.onClose
     , onNormalClose = Maybe.map func socket.onNormalClose
