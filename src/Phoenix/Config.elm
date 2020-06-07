@@ -1,9 +1,28 @@
-module Phoenix.Config exposing (Config, map, new, withDebug)
+module Phoenix.Config exposing
+    ( Config
+    , new, withDebug, map
+    )
+
+{-| Defines the Config for Phoenix
+
+
+# Definition
+
+@docs Config
+
+
+# Helpers
+
+@docs new, withDebug, map
+
+-}
 
 import Phoenix.Internal.Types exposing (Msg)
 import Phoenix.PortsAPI exposing (Ports)
 
 
+{-| The config for Phoenix
+-}
 type alias Config msg =
     { parentMsg : Msg msg -> msg
     , debug : Bool
@@ -11,6 +30,8 @@ type alias Config msg =
     }
 
 
+{-| Creates a new config
+-}
 new : (Msg msg -> msg) -> Ports msg -> Config msg
 new parentMsg ports =
     { parentMsg = parentMsg, debug = False, ports = Just ports }

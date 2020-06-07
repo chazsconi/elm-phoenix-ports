@@ -2,8 +2,11 @@ port module PhoenixPorts exposing (ports)
 
 import Json.Encode as JE
 import Phoenix.Channel exposing (Topic)
-import Phoenix.Internal.ChannelStates exposing (ChannelObj)
 import Phoenix.PortsAPI exposing (..)
+
+
+type alias ChannelObj =
+    JE.Value
 
 
 {-| This is not included in the package as Port modules

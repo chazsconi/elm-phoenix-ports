@@ -1,7 +1,7 @@
 module Phoenix.Channel exposing
     ( Channel
-    , init, withPayload, on, onJoin, onRequestJoin, onJoinError, onError, onLeave, onLeaveError, withDebug, map, Topic
-    , withPresence
+    , Topic
+    , init, withPayload, on, onJoin, onRequestJoin, onJoinError, onError, onLeave, onLeaveError, withDebug, withPresence, map
     -- , onRejoin
     -- TODO: Implement these
     -- , onDisconnect
@@ -13,12 +13,12 @@ module Phoenix.Channel exposing
 # Definition
 
 @docs Channel
+@docs Topic
 
 
 # Helpers
 
-@docs init, withPayload, on, onJoin, onRequestJoin, onJoinError, onError, onDisconnect, onRejoin, onLeave, onLeaveError, withDebug, map, Topic
-@docs init, withPayload, on, onJoin, onRequestJoin, onJoinError, onError, onDisconnect, onRejoin, onLeave, onLeaveError, withDebug, withPresence, map
+@docs init, withPayload, on, onJoin, onRequestJoin, onJoinError, onError, onLeave, onLeaveError, withDebug, withPresence, map
 
 -}
 

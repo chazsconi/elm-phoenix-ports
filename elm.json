@@ -3,13 +3,15 @@
     "name": "chazsconi/elm-phoenix-ports",
     "summary": "Elm Phoenix with ports",
     "license": "MIT",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "exposed-modules": [
         "Phoenix",
-        "Phoenix.Channel",
+        "Phoenix.Config",
         "Phoenix.Socket",
+        "Phoenix.Channel",
         "Phoenix.Push",
-        "Phoenix.Presence"
+        "Phoenix.Presence",
+        "Phoenix.PortsAPI"
     ],
     "elm-version": "0.19.1 <= v < 0.20.0",
     "dependencies": {

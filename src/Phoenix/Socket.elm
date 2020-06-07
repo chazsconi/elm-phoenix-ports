@@ -1,10 +1,12 @@
 module Phoenix.Socket exposing
-    ( Socket, AbnormalClose
-    , init, withParams, reconnectTimer, onAbnormalClose, onOpen, onClose, map
+    ( Socket
+    , init, withParams, onOpen, onClose, map
+    -- ,  AbnormalClose
     -- TODO: Implement these
     -- , heartbeatIntervallSeconds
     -- , onNormalClose
     -- , withoutHeartbeat
+    -- , reconnectTimer
     )
 
 {-| A socket declares to which endpoint a socket connection should be established.
@@ -12,12 +14,12 @@ module Phoenix.Socket exposing
 
 # Definition
 
-@docs Socket, AbnormalClose
+@docs Socket
 
 
 # Helpers
 
-@docs init, withParams, heartbeatIntervallSeconds, withoutHeartbeat, reconnectTimer, withDebug, onAbnormalClose, onNormalClose, onOpen, onClose, map
+@docs init, withParams, onOpen, onClose, map
 
 -}
 

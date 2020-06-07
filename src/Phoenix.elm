@@ -1,12 +1,19 @@
 module Phoenix exposing
-    ( connect, new, push, update, mapMsg
-    , Model, Msg
+    ( Msg
+    , Model
+    , connect, new, push, update, mapMsg
     )
 
 {-| Entrypoint for Phoenix
 
 
 # Definition
+
+@docs Msg
+@docs Model
+
+
+# Helpers
 
 @docs connect, new, push, update, mapMsg
 
@@ -32,10 +39,14 @@ import Time
 -- Code:  https://github.com/saschatimme/elm-phoenix
 
 
+{-| Internal messages
+-}
 type alias Msg msg =
     Phoenix.Internal.Types.Msg msg
 
 
+{-| Internal model
+-}
 type alias Model msg channelsModel =
     Phoenix.Internal.Types.Model msg channelsModel
 
