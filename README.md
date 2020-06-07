@@ -14,24 +14,29 @@ It is compatible with Elm 0.19 as it does not use an Effects Manager and uses po
 In addition to the installation steps below please see [Migration Guide](migration-guide.md)
 
 ### Installation
-This is not yet shipped as an Elm package as it requires installing js code that is shipped with the library.  Therefore
-you need to install this with `npm` or similar direct from github.
+Install the package in the normal way:
+```bash
+elm install chazsconi/elm-phoenix-ports
+```
+
+As ports are required for this and Elm does not permit publishing port modules in packages, you also need to install the
+Elm and JS ports code.  You can do this via `npm` (or similar) direct from github.
+
+N.B. Ensure the version number usedin the `package.json` reference matches the version of the installed Elm package.
 
 In `package.json` add the dependency from github:
 ```
 "dependencies": {
   ...
-  "elm-phoenix-ports": "github:chazsconi/elm-phoenix-ports",
+  "elm-phoenix-ports": "github:chazsconi/elm-phoenix-ports#1.1.1",
   ...
 },
 
 ```
-In `elm.json` add the source directories for both the library and the ports module.  The ports module is in a separate folder
-so that the main code can subsequently be made into an Elm package (ports are not allowed in packages).
+In `elm.json` add the source directory for the ports module.
 ```
 "source-directories": [
     "src",
-    "node_modules/elm-phoenix-ports/src",
     "node_modules/elm-phoenix-ports/elm-ports"
 ],
 ```
@@ -185,8 +190,8 @@ channels channelModel =
   ] ++ List.map Channel.init channelModel.rooms
 ```
 
-## Documentation
-Please see the old API [saschatimme/elm-phoenix](https://saschatimme.github.io/elm-phoenix) for the current API functions on `Channel` and `Push`
+## Module docs
+Please see https://package.elm-lang.org/packages/chazsconi/elm-phoenix-ports/latest
 
 ## Example app
 Please see the example chat room app in the `example` folder.
@@ -233,4 +238,3 @@ If you use the package in your project, it would be nice to know
 
 ## TODO
 * Implement missing features (See TODO markers)
-* Publish as a package
