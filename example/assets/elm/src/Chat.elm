@@ -12,7 +12,7 @@ import Phoenix.Channel as Channel exposing (Channel)
 import Phoenix.Config
 import Phoenix.Presence as Presence exposing (Presence)
 import Phoenix.Push as Push
-import Phoenix.Socket as Socket exposing (AbnormalClose, Socket)
+import Phoenix.Socket as Socket exposing (Socket)
 import PhoenixPorts
 
 
