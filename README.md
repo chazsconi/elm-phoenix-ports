@@ -51,6 +51,11 @@ var app = elmXingbox.Elm.MyElmApp.init({flags:{}});
 elmPhoenix.init(app);
 ```
 
+To enable debug logging you can pass a 2nd parameter to the `init` function:
+```javascript
+elmPhoenix.init(app, {debug: true});
+```
+
 ### Wiring up Elm
 
 As there is no effects manager in Elm 0.19, the library has its own messages and model that you need to delegate in the `update` function.
@@ -118,7 +123,7 @@ update msg model =
         ...
 
         PhoenixMsg phoenixMsg ->
-            let    
+            let
                 ( phoenixModel, cmd ) =
                     Phoenix.update phoenixConfig socket channels () phoenixMsg model.phoenixModel
             in
@@ -189,6 +194,10 @@ channels channelModel =
         |> Channel.on "new_msg" NewMsg
   ] ++ List.map Channel.init channelModel.rooms
 ```
+
+**Warning** - If you want to leave all channels (e.g. when showing an error page to the user)
+do not remove `Phoenix.connect` from your `subscriptions` function as this will have no effect.
+Instead, return an empty list of channels from the `channels` function.
 
 ## Module docs
 Please see https://package.elm-lang.org/packages/chazsconi/elm-phoenix-ports/latest
