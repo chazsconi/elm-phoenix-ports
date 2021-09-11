@@ -3,7 +3,7 @@
     "name": "chazsconi/elm-phoenix-ports",
     "summary": "Elm Phoenix with ports",
     "license": "MIT",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "exposed-modules": [
         "Phoenix",
         "Phoenix.Config",
