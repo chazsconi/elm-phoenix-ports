@@ -28,10 +28,13 @@ type Msg msg
     | ChannelsCreated (List ( Topic, JD.Value ))
     | ChannelJoinOk Topic JD.Value
     | ChannelJoinError Topic JD.Value
+    | ChannelJoinTimeout Topic
     | ChannelLeaveOk Topic JD.Value
     | ChannelLeaveError Topic JD.Value
+    | ChannelLeaveTimeout Topic
     | ChannelPushOk Topic PushRef JD.Value
     | ChannelPushError Topic PushRef JD.Value
+    | ChannelPushTimeout Topic PushRef
     | ChannelMessage Topic Event JD.Value
     | ChannelError Topic
     | PresenceUpdated PresenceEvent Topic (Dict String (List JD.Value))

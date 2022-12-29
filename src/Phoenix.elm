@@ -185,6 +185,14 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                 Just ( p, updatedPushes ) ->
                     ( { model | pushes = updatedPushes }, Cmd.none, maybeToList <| Maybe.map (\c -> c payload) p.onError )
 
+        ChannelPushTimeout topic pushRef ->
+            case Pushes.pop pushRef model.pushes of
+                Nothing ->
+                    ( model, Cmd.none, [] )
+
+                Just ( p, updatedPushes ) ->
+                    ( { model | pushes = updatedPushes }, Cmd.none, maybeToList p.onTimeout )
+
         ChannelsCreated channelsCreated ->
             let
                 updatedChannelStates =
@@ -259,6 +267,19 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                 Nothing ->
                     ( model, Cmd.none, [] )
 
+        ChannelJoinTimeout topic ->
+            case ChannelStates.getChannel topic model.channelStates of
+                Just channel ->
+                    case channel.onJoinTimeout of
+                        Nothing ->
+                            ( model, Cmd.none, [] )
+
+                        Just onJoinTimeout ->
+                            ( model, Cmd.none, [ onJoinTimeout ] )
+
+                Nothing ->
+                    ( model, Cmd.none, [] )
+
         ChannelLeaveOk topic payload ->
             case ChannelStates.getChannel topic model.channelStates of
                 Just channel ->
@@ -291,6 +312,25 @@ internalUpdate ports socket channelsFn channelsModel msg model =
 
                         Just onLeaveError ->
                             ( updatedModel, Cmd.none, [ onLeaveError payload ] )
+
+                Nothing ->
+                    ( model, Cmd.none, [] )
+
+        ChannelLeaveTimeout topic ->
+            case ChannelStates.getChannel topic model.channelStates of
+                Just channel ->
+                    let
+                        -- Not sure what to do here, or how a leave error can occur
+                        -- but the channel is removed anyway
+                        updatedModel =
+                            { model | channelStates = ChannelStates.remove topic model.channelStates }
+                    in
+                    case channel.onLeaveTimeout of
+                        Nothing ->
+                            ( updatedModel, Cmd.none, [] )
+
+                        Just onLeaveTimeout ->
+                            ( updatedModel, Cmd.none, [ onLeaveTimeout ] )
 
                 Nothing ->
                     ( model, Cmd.none, [] )
@@ -393,7 +433,7 @@ pushChannel ports pushRef channelObj p =
         , onHandlers =
             { onOk = p.onOk /= Nothing
             , onError = p.onError /= Nothing
-            , onTimeout = True
+            , onTimeout = p.onTimeout /= Nothing
             }
         }
 
@@ -451,6 +491,21 @@ parsePushReply { topic, eventName, pushType, ref, payload } =
                     -- Unknown push type
                     NoOp
 
+        "timeout" ->
+            case ( pushType, ref ) of
+                ( "join", _ ) ->
+                    ChannelJoinTimeout topic
+
+                ( "leave", _ ) ->
+                    ChannelLeaveTimeout topic
+
+                ( "msg", Just r ) ->
+                    ChannelPushTimeout topic r
+
+                _ ->
+                    -- Unknown push type
+                    NoOp
+
         _ ->
             -- Unknown event type
             NoOp
@@ -485,17 +540,26 @@ mapMsg func msg =
         ChannelJoinError a b ->
             ChannelJoinError a b
 
+        ChannelJoinTimeout a ->
+            ChannelJoinTimeout a
+
         ChannelLeaveOk a b ->
             ChannelLeaveOk a b
 
         ChannelLeaveError a b ->
             ChannelLeaveError a b
 
+        ChannelLeaveTimeout a ->
+            ChannelLeaveTimeout a
+
         ChannelPushOk a b c ->
             ChannelPushOk a b c
 
         ChannelPushError a b c ->
             ChannelPushError a b c
+
+        ChannelPushTimeout a b ->
+            ChannelPushTimeout a b
 
         ChannelMessage a b c ->
             ChannelMessage a b c
