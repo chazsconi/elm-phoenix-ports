@@ -195,6 +195,10 @@ channels channelModel =
   ] ++ List.map Channel.init channelModel.rooms
 ```
 
+**Warning** - Do NOT put `Json.Encode.Value`s into your channel model.  As an optimisation, the library compares the passed channels model with the version from the previous functional call and then only calls the provided `channels` function if the model has changed.  This comparison is done with `==` and due to an issue in Elm, comparing a model with a contained `Json.Encode.Value` can cause a runtime exception. (See https://github.com/elm/core/issues/1058).
+
+If you do need to have `Json.Encode.Value`s in your channel model you can use `Phoenix.updateWithChannelsModelComparator` instead of `Phoenix.update` and provide a safe comparator for your channels model in place of the default `==`.
+
 **Warning** - If you want to leave all channels (e.g. when showing an error page to the user)
 do not remove `Phoenix.connect` from your `subscriptions` function as this will have no effect.
 Instead, return an empty list of channels from the `channels` function.

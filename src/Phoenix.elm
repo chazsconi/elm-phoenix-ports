@@ -1,7 +1,7 @@
 module Phoenix exposing
     ( Msg
     , Model
-    , connect, new, push, update, mapMsg
+    , connect, new, push, update, updateWithChannelsModelComparator, mapMsg
     )
 
 {-| Entrypoint for Phoenix
@@ -15,7 +15,7 @@ module Phoenix exposing
 
 # Helpers
 
-@docs connect, new, push, update, mapMsg
+@docs connect, new, push, update, updateWithChannelsModelComparator, mapMsg
 
 -}
 
@@ -51,6 +51,14 @@ type alias Model msg channelsModel =
     Phoenix.Internal.Types.Model msg channelsModel
 
 
+type alias Comparator channelsModel =
+    channelsModel -> channelsModel -> Bool
+
+
+type alias Builder msg channelsModel =
+    channelsModel -> List (Channel msg)
+
+
 {-| Initialise the model
 -}
 new : Model msg channelsModel
@@ -68,8 +76,15 @@ push config p =
 
 {-| Update the model
 -}
-update : Config msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
-update config socket channelsFn channelsModel msg model =
+update : Config msg -> Socket msg -> Builder msg channelsModel -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
+update config socket channelBuilder channelsModel msg model =
+    updateWithChannelsModelComparator config socket channelBuilder (==) channelsModel msg model
+
+
+{-| Update the model passing a comparator for the channelsModel
+-}
+updateWithChannelsModelComparator : Config msg -> Socket msg -> Builder msg channelsModel -> Comparator channelsModel -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
+updateWithChannelsModelComparator config socket channelBuilder channelsModelComparator channelsModel msg model =
     let
         _ =
             if config.debug then
@@ -84,7 +99,7 @@ update config socket channelsFn channelsModel msg model =
                     ( model, Cmd.none, [] )
 
                 Just ports ->
-                    internalUpdate ports socket channelsFn channelsModel msg model
+                    internalUpdate ports socket channelBuilder channelsModelComparator channelsModel msg model
 
         allCmd =
             Cmd.batch <| Cmd.map config.parentMsg cmd :: List.map (\parentMsg -> Task.perform (\_ -> parentMsg) (Task.succeed Ok)) parentMsgs
@@ -92,8 +107,8 @@ update config socket channelsFn channelsModel msg model =
     ( updateModel, allCmd )
 
 
-internalUpdate : Ports msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd (Msg msg), List msg )
-internalUpdate ports socket channelsFn channelsModel msg model =
+internalUpdate : Ports msg -> Socket msg -> Builder msg channelsModel -> Comparator channelsModel -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd (Msg msg), List msg )
+internalUpdate ports socket channelBuilder comparator channelsModel msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none, [] )
@@ -110,13 +125,17 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                     )
 
                 Connected ->
-                    if Just channelsModel == model.previousChannelsModel then
+                    if
+                        -- Only connect/disconnect channels if the channelModel has changed
+                        Maybe.map (\previousChannelsModel -> comparator channelsModel previousChannelsModel) model.previousChannelsModel
+                            |> Maybe.withDefault False
+                    then
                         ( model, Cmd.none, [] )
 
                     else
                         let
                             ( updatedChannelStates, newChannels, removedChannelObjs ) =
-                                ChannelStates.update (channelsFn channelsModel) model.channelStates
+                                ChannelStates.update (channelBuilder channelsModel) model.channelStates
 
                             newChannelsCmd =
                                 if newChannels == [] then
