@@ -1,7 +1,7 @@
 module Phoenix exposing
     ( Msg
     , Model
-    , connect, new, push, update, updateWithChannelsModelComparator, mapMsg
+    , subscriptions, new, push, update, updateWrapper, mapMsg
     )
 
 {-| Entrypoint for Phoenix
@@ -15,15 +15,13 @@ module Phoenix exposing
 
 # Helpers
 
-@docs connect, new, push, update, updateWithChannelsModelComparator, mapMsg
+@docs subscriptions, new, push, update, updateWrapper, mapMsg
 
 -}
 
 import Dict
-import Json.Decode as JD
 import Json.Encode as JE
-import Phoenix.Channel exposing (Channel, Topic)
-import Phoenix.Config exposing (Config)
+import Phoenix.Config exposing (Config, PushableConfig)
 import Phoenix.Internal.ChannelStates as ChannelStates exposing (ChannelObj)
 import Phoenix.Internal.Pushes as Pushes exposing (PushRef)
 import Phoenix.Internal.Types exposing (Model, Msg(..), PresenceEvent(..), SocketState(..))
@@ -31,7 +29,6 @@ import Phoenix.PortsAPI as PortsAPI exposing (Ports)
 import Phoenix.Push exposing (Push)
 import Phoenix.Socket exposing (Socket)
 import Task
-import Time
 
 
 
@@ -51,14 +48,6 @@ type alias Model msg channelsModel =
     Phoenix.Internal.Types.Model msg channelsModel
 
 
-type alias Comparator channelsModel =
-    channelsModel -> channelsModel -> Bool
-
-
-type alias Builder msg channelsModel =
-    channelsModel -> List (Channel msg)
-
-
 {-| Initialise the model
 -}
 new : Model msg channelsModel
@@ -68,7 +57,7 @@ new =
 
 {-| Push an event to a channel
 -}
-push : Config msg -> Push msg -> Cmd msg
+push : PushableConfig msg a -> Push msg -> Cmd msg
 push config p =
     Cmd.map config.parentMsg <|
         Task.perform (\_ -> SendPush p) (Task.succeed Ok)
@@ -76,16 +65,15 @@ push config p =
 
 {-| Update the model
 -}
-update : Config msg -> Socket msg -> Builder msg channelsModel -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
-update config socket channelBuilder channelsModel msg model =
-    updateWithChannelsModelComparator config socket channelBuilder (==) channelsModel msg model
-
-
-{-| Update the model passing a comparator for the channelsModel
--}
-updateWithChannelsModelComparator : Config msg -> Socket msg -> Builder msg channelsModel -> Comparator channelsModel -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
-updateWithChannelsModelComparator config socket channelBuilder channelsModelComparator channelsModel msg model =
+update : Config msg parentModel channelsModel -> Msg msg -> parentModel -> ( parentModel, Cmd msg )
+update config msg parentModel =
     let
+        model =
+            config.modelGetter parentModel
+
+        socket =
+            config.socket parentModel
+
         _ =
             if config.debug then
                 Debug.log "msg model" ( msg, model )
@@ -93,74 +81,111 @@ updateWithChannelsModelComparator config socket channelBuilder channelsModelComp
             else
                 ( msg, model )
 
-        ( updateModel, cmd, parentMsgs ) =
+        ( updatedModel, cmd, parentMsgs ) =
             case config.ports of
                 Nothing ->
                     ( model, Cmd.none, [] )
 
                 Just ports ->
-                    internalUpdate ports socket channelBuilder channelsModelComparator channelsModel msg model
+                    internalUpdate ports socket msg model
 
         allCmd =
             Cmd.batch <| Cmd.map config.parentMsg cmd :: List.map (\parentMsg -> Task.perform (\_ -> parentMsg) (Task.succeed Ok)) parentMsgs
     in
-    ( updateModel, allCmd )
+    ( config.modelSetter updatedModel parentModel, allCmd )
 
 
-internalUpdate : Ports msg -> Socket msg -> Builder msg channelsModel -> Comparator channelsModel -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd (Msg msg), List msg )
-internalUpdate ports socket channelBuilder comparator channelsModel msg model =
+{-| Updates the channels by plugging into the main update function
+-}
+updateWrapper :
+    Config msg parentModel channelsModel
+    -> (msg -> parentModel -> ( parentModel, Cmd msg ))
+    -> (msg -> parentModel -> ( parentModel, Cmd msg ))
+updateWrapper config mainUpdate =
+    let
+        phoenixUpdate ( parentModel, cmd ) =
+            let
+                ( phoenixModel, phoenixCmd ) =
+                    updateChannels config
+                        -- Resolve these with the parentModel
+                        (config.socket parentModel)
+                        (config.channelsModelBuilder parentModel)
+                        (config.modelGetter parentModel)
+            in
+            ( config.modelSetter phoenixModel parentModel, Cmd.batch [ phoenixCmd, cmd ] )
+    in
+    \msg model ->
+        mainUpdate msg model |> phoenixUpdate
+
+
+updateChannels : Config msg parentModel channelsModel -> Socket msg -> channelsModel -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
+updateChannels config socket channelsModel model =
+    case config.ports of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just ports ->
+            let
+                ( updateModel, cmd, parentMsgs ) =
+                    case model.socketState of
+                        Disconnected ->
+                            ( { model | socketState = Connected }
+                            , ports.connectSocket
+                                { endpoint = socket.endpoint
+                                , params = JE.dict identity JE.string (Dict.fromList socket.params)
+                                }
+                            , []
+                            )
+
+                        Connected ->
+                            if
+                                -- Only connect/disconnect channels if the channelModel has changed
+                                Maybe.map (\previousChannelsModel -> config.channelsModelComparator channelsModel previousChannelsModel) model.previousChannelsModel
+                                    |> Maybe.withDefault False
+                            then
+                                ( model, Cmd.none, [] )
+
+                            else
+                                let
+                                    ( updatedChannelStates, newChannels, removedChannelObjs ) =
+                                        ChannelStates.update (config.channelsBuilder channelsModel) model.channelStates
+
+                                    newChannelsCmd =
+                                        if newChannels == [] then
+                                            Cmd.none
+
+                                        else
+                                            ports.joinChannels <|
+                                                List.map
+                                                    (\c ->
+                                                        { topic = c.topic
+                                                        , payload = Maybe.withDefault JE.null c.payload
+                                                        , onHandlers = { onOk = c.onJoin /= Nothing, onError = c.onJoinError /= Nothing, onTimeout = False }
+                                                        , presence = c.presence /= Nothing
+                                                        }
+                                                    )
+                                                    newChannels
+
+                                    onRequestJoinMsgs =
+                                        List.filterMap .onRequestJoin newChannels
+
+                                    cmds =
+                                        newChannelsCmd
+                                            :: List.map ports.leaveChannel removedChannelObjs
+                                in
+                                ( { model | previousChannelsModel = Just channelsModel, channelStates = updatedChannelStates }, Cmd.batch cmds, onRequestJoinMsgs )
+
+                allCmd =
+                    Cmd.batch <| Cmd.map config.parentMsg cmd :: List.map (\parentMsg -> Task.perform (\_ -> parentMsg) (Task.succeed Ok)) parentMsgs
+            in
+            ( updateModel, allCmd )
+
+
+internalUpdate : Ports msg -> Socket msg -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd (Msg msg), List msg )
+internalUpdate ports socket msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none, [] )
-
-        Tick _ ->
-            case model.socketState of
-                Disconnected ->
-                    ( { model | socketState = Connected }
-                    , ports.connectSocket
-                        { endpoint = socket.endpoint
-                        , params = JE.dict identity JE.string (Dict.fromList socket.params)
-                        }
-                    , []
-                    )
-
-                Connected ->
-                    if
-                        -- Only connect/disconnect channels if the channelModel has changed
-                        Maybe.map (\previousChannelsModel -> comparator channelsModel previousChannelsModel) model.previousChannelsModel
-                            |> Maybe.withDefault False
-                    then
-                        ( model, Cmd.none, [] )
-
-                    else
-                        let
-                            ( updatedChannelStates, newChannels, removedChannelObjs ) =
-                                ChannelStates.update (channelBuilder channelsModel) model.channelStates
-
-                            newChannelsCmd =
-                                if newChannels == [] then
-                                    Cmd.none
-
-                                else
-                                    ports.joinChannels <|
-                                        List.map
-                                            (\c ->
-                                                { topic = c.topic
-                                                , payload = Maybe.withDefault JE.null c.payload
-                                                , onHandlers = { onOk = c.onJoin /= Nothing, onError = c.onJoinError /= Nothing, onTimeout = False }
-                                                , presence = c.presence /= Nothing
-                                                }
-                                            )
-                                            newChannels
-
-                            onRequestJoinMsgs =
-                                List.filterMap .onRequestJoin newChannels
-
-                            cmds =
-                                [ newChannelsCmd ]
-                                    ++ List.map ports.leaveChannel removedChannelObjs
-                        in
-                        ( { model | previousChannelsModel = Just channelsModel, channelStates = updatedChannelStates }, Cmd.batch cmds, onRequestJoinMsgs )
 
         SocketOpened ->
             ( model, Cmd.none, maybeToList socket.onOpen )
@@ -188,7 +213,7 @@ internalUpdate ports socket channelBuilder comparator channelsModel msg model =
                     , []
                     )
 
-        ChannelPushOk topic pushRef payload ->
+        ChannelPushOk _ pushRef payload ->
             case Pushes.pop pushRef model.pushes of
                 Nothing ->
                     ( model, Cmd.none, [] )
@@ -196,7 +221,7 @@ internalUpdate ports socket channelBuilder comparator channelsModel msg model =
                 Just ( p, updatedPushes ) ->
                     ( { model | pushes = updatedPushes }, Cmd.none, maybeToList <| Maybe.map (\c -> c payload) p.onOk )
 
-        ChannelPushError topic pushRef payload ->
+        ChannelPushError _ pushRef payload ->
             case Pushes.pop pushRef model.pushes of
                 Nothing ->
                     ( model, Cmd.none, [] )
@@ -204,7 +229,7 @@ internalUpdate ports socket channelBuilder comparator channelsModel msg model =
                 Just ( p, updatedPushes ) ->
                     ( { model | pushes = updatedPushes }, Cmd.none, maybeToList <| Maybe.map (\c -> c payload) p.onError )
 
-        ChannelPushTimeout topic pushRef ->
+        ChannelPushTimeout _ pushRef ->
             case Pushes.pop pushRef model.pushes of
                 Nothing ->
                     ( model, Cmd.none, [] )
@@ -412,18 +437,10 @@ maybeToList m =
             []
 
 
-{-| Connect the socket
+{-| Subscriptions for phoenix
 -}
-connect : Config msg -> Sub msg
-connect config =
-    let
-        tickInterval =
-            if config.debug then
-                1000
-
-            else
-                100
-    in
+subscriptions : Config msg parentModel channelsModel -> Sub msg
+subscriptions config =
     case config.ports of
         Nothing ->
             Sub.none
@@ -438,7 +455,6 @@ connect config =
                     , ports.socketOpened (\_ -> SocketOpened)
                     , ports.socketClosed SocketClosed
                     , ports.presenceUpdated parsePresenceUpdated
-                    , Time.every tickInterval Tick
                     ]
 
 
@@ -540,9 +556,6 @@ mapMsg func msg =
 
         NoOp ->
             NoOp
-
-        Tick time ->
-            Tick time
 
         SocketOpened ->
             SocketOpened
