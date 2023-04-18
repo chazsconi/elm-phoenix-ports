@@ -6,7 +6,6 @@ import Phoenix.Channel exposing (Topic)
 import Phoenix.Internal.ChannelStates exposing (ChannelStates)
 import Phoenix.Internal.Pushes exposing (PushRef, Pushes)
 import Phoenix.Push exposing (Push)
-import Time
 
 
 type alias Event =
@@ -21,7 +20,6 @@ type PresenceEvent
 
 type Msg msg
     = NoOp
-    | Tick Time.Posix
     | SocketOpened
     | SocketClosed { code : Int, reason : String, wasClean : Bool }
     | SendPush (Push msg)
