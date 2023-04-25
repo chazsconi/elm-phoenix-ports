@@ -9,8 +9,8 @@ import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Phoenix
 import Phoenix.Channel as Channel exposing (Channel)
-import Phoenix.Config
-import Phoenix.Presence as Presence exposing (Presence)
+import Phoenix.Config exposing (Config)
+import Phoenix.Presence as Presence
 import Phoenix.Push as Push
 import Phoenix.Socket as Socket exposing (Socket)
 import PhoenixPorts
@@ -20,7 +20,7 @@ main : Program () Model Msg
 main =
     Browser.element
         { init = init
-        , update = update
+        , update = update |> Phoenix.updateWrapper phoenixConfig
         , subscriptions = subscriptions
         , view = view
         }
@@ -76,7 +76,7 @@ initModel =
 
 
 init : () -> ( Model, Cmd Msg )
-init flags =
+init _ =
     ( initModel, Cmd.none )
 
 
@@ -128,7 +128,7 @@ update message model =
                 Ok msg ->
                     ( { model | messages = List.append model.messages [ msg ] }, Cmd.none )
 
-                Err err ->
+                Err _ ->
                     ( model, Cmd.none )
 
         UpdatePresence presenceState ->
@@ -140,14 +140,7 @@ update message model =
             ( { model | connectionStatus = connectionStatus }, Cmd.none )
 
         PhoenixMsg phoenixMsg ->
-            let
-                channelModel =
-                    { isActive = model.isActive, userName = model.userName }
-
-                ( phoenixModel, cmd ) =
-                    Phoenix.update phoenixConfig socket channels channelModel phoenixMsg model.phoenixModel
-            in
-            ( { model | phoenixModel = phoenixModel }, cmd )
+            Phoenix.update phoenixConfig phoenixMsg model
 
 
 
@@ -165,8 +158,17 @@ decodeNewMsg =
 -- SUBSCRIPTIONS
 
 
+phoenixConfig : Config Msg Model ChannelModel
 phoenixConfig =
-    Phoenix.Config.new PhoenixMsg PhoenixPorts.ports
+    Phoenix.Config.new
+        PhoenixMsg
+        PhoenixPorts.ports
+        socket
+        -- getter
+        .phoenixModel
+        -- setter
+        (\phoenixModel model -> { model | phoenixModel = phoenixModel })
+        |> Phoenix.Config.withDynamicChannels channels channelsModelBuilder
 
 
 endpoint : String
@@ -176,13 +178,21 @@ endpoint =
 
 {-| Initialize a socket with the default heartbeat intervall of 30 seconds
 -}
-socket : Socket Msg
-socket =
+socket : Model -> Socket Msg
+socket _ =
     Socket.init endpoint
         |> Socket.onOpen (ConnectionStatusChanged Connected)
         |> Socket.onClose (\_ -> ConnectionStatusChanged Disconnected)
 
 
+channelsModelBuilder : Model -> ChannelModel
+channelsModelBuilder model =
+    { isActive = model.isActive
+    , userName = model.userName
+    }
+
+
+channels : ChannelModel -> List (Channel Msg)
 channels { isActive, userName } =
     if isActive then
         [ lobby userName ]
@@ -209,12 +219,8 @@ lobby userName =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.batch [ phoenixSubscription model ]
-
-
-phoenixSubscription model =
-    Phoenix.connect phoenixConfig
+subscriptions _ =
+    Phoenix.subscriptions phoenixConfig
 
 
 
