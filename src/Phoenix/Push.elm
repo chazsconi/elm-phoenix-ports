@@ -1,6 +1,6 @@
 module Phoenix.Push exposing
     ( Push
-    , init, withPayload, onOk, onError, map
+    , init, withPayload, onOk, onError, onTimeout, map
     )
 
 {-| A message to push informations to a channel.
@@ -13,7 +13,7 @@ module Phoenix.Push exposing
 
 # Helpers
 
-@docs init, withPayload, onOk, onError, map
+@docs init, withPayload, onOk, onError, onTimeout, map
 
 -}
 
@@ -32,6 +32,7 @@ type alias PhoenixPush msg =
     , payload : Value
     , onOk : Maybe (Value -> msg)
     , onError : Maybe (Value -> msg)
+    , onTimeout : Maybe msg
     }
 
 
@@ -50,7 +51,7 @@ type alias Event =
 -}
 init : Topic -> Event -> Push msg
 init topic event =
-    PhoenixPush topic event (Json.Encode.object []) Nothing Nothing
+    PhoenixPush topic event (Json.Encode.object []) Nothing Nothing Nothing
 
 
 {-| Attach a payload to a message
@@ -101,7 +102,24 @@ onError cb push =
     { push | onError = Just cb }
 
 
-{-| Applies the function on the onOk and onError callback
+{-| Callback if the push times-out.
+
+    type Msg = MessageTimeout | ...
+
+    payload =
+        Json.Encode.object [("msg", "Hello Phoenix")]
+
+    init "room:lobby" "new_msg"
+        |> withPayload
+        |> onTimeout MessageTimeout
+
+-}
+onTimeout : msg -> Push msg -> Push msg
+onTimeout cb push =
+    { push | onTimeout = Just cb }
+
+
+{-| Applies the function on the onOk, onError and onTimeout callbacks
 -}
 map : (a -> b) -> Push a -> Push b
 map func push =
@@ -109,4 +127,4 @@ map func push =
         f =
             Maybe.map ((<<) func)
     in
-    { topic = push.topic, event = push.event, payload = push.payload, onOk = f push.onOk, onError = f push.onError }
+    { topic = push.topic, event = push.event, payload = push.payload, onOk = f push.onOk, onError = f push.onError, onTimeout = Maybe.map func push.onTimeout }

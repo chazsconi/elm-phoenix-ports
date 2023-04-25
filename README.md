@@ -28,7 +28,7 @@ In `package.json` add the dependency from github:
 ```
 "dependencies": {
   ...
-  "elm-phoenix-ports": "github:chazsconi/elm-phoenix-ports#1.1.1",
+  "elm-phoenix-ports": "github:chazsconi/elm-phoenix-ports#2.0.0",
   ...
 },
 
@@ -77,7 +77,7 @@ type alias Model =
   }
 ```
 
-Declare a `phoenixConfig` with your `PhoenixMsg`, the `socket` you want to connect to and the channels you want to join, along with what to do when
+Declare a `phoenixConfig` with your `PhoenixMsg`, the `socket` you want to connect to, a `getter` and `setter` for the phoenix model in your model, and the channels you want to join along with what to do when
 messages are received. The library code will open the socket connection and join the channels.
 
 ```elm
@@ -88,28 +88,48 @@ import Phoenix.Config
 import PhoenixPorts
 
 phoenixConfig =
-  Phoenix.Config.new PhoenixMsg PhoenixPorts.ports
+  Phoenix.Config.new
+    PhoenixMsg
+    PhoenixPorts.ports
+    socket
+    -- getter
+    .phoenixModel
+    -- setter
+    (\phoenixModel model -> { model | phoenixModel = phoenixModel })
+    |> Phoenix.Config.withStaticChannels channels
 
 -- N.B. Do not suffix the endpoint url with `/websocket` as this is automatically added by `phoenix.js`.
 endpoint =
     "ws://localhost:4000/socket"
 
-socket =
+-- The parameter is your model and can be used to dynamically configure the endpoint if required.
+socket _ =
     Socket.init endpoint
 
--- channelModel here can be used to dynamically connect to channels.  See advanced usage.
-channels channelModel =
+-- Static channels to connect to.  See advanced usage for connecting to channels dynamically.
+channels =
   [ Channel.init "room:lobby"
         -- register an handler for messages with a "new_msg" event
         |> Channel.on "new_msg" NewMsg
   ]
 ```
 
-Initialise the `phoenixModel`, delegate `PhoenixMsg` to `Phoenix` in your `update`, and set the subscriptions:
+Pipe your main `update` function to `Phoenix.updateWrapper`, initialise the `phoenixModel`, delegate `PhoenixMsg` to `Phoenix` in your `update`, and set the subscriptions:
 
 ```elm
+import Browser
 import Phoenix
 import PhoenixPorts
+
+main : Program Flags Model Msg
+main =
+    Browser.element
+        { init = init
+        , view = view
+        , update = update |> Phoenix.updateWrapper phoenixConfig
+        , subscriptions = subscriptions
+        }
+
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
@@ -123,18 +143,14 @@ update msg model =
         ...
 
         PhoenixMsg phoenixMsg ->
-            let
-                ( phoenixModel, cmd ) =
-                    Phoenix.update phoenixConfig socket channels () phoenixMsg model.phoenixModel
-            in
-            ( { model | phoenixModel = phoenixModel }, cmd )
-           ...
+            Phoenix.update phoenixConfig phoenixMsg model
+        ...
 
         NewMsg value ->
           ...
 
 subscriptions model =
-    Phoenix.connect phoenixConfig
+    Phoenix.subscriptions phoenixConfig
 ```
 
 In order to push a message to a channel you can do this:
@@ -153,51 +169,72 @@ pushMessage =
 ```
 
 ## Advanced usage
+
+### Dynamic Channels
+
 If you need to join or leave channels dynamically (e.g. in the example of a chat app the user can choose the rooms to join),
-you need to define a `ChannelModel` which defines the parameters needed to build the list of channels.  Your `phoenixModel` must
+you need to define a `ChannelsModel` which defines the parameters needed to build the list of channels.  Your `phoenixModel` must
 be parameterised with this instead of `()`
 e.g.
 
 ```elm
 type alias Room = String
 
-type alias ChannelModel =
+type alias ChannelsModel =
   { rooms: List Room }
 
 type alias Model =
   { myModelField : String
   , rooms : List Room
-  , phoenixModel : Phoenix.Model Msg ChannelModel
+  , phoenixModel : Phoenix.Model Msg ChannelsModel
   }
 ```
 
-In the `update` create this channel model from your model and pass it
-to `Phoenix.update`:
+When building the config, use `Phoenix.Config.withDynamicChannels` instead of `Phoenix.Config.withStaticChannels`.Pass a
+`channels` function and a `channelsModelBuilder` function. The `channelsModelBuilder` will be run on every iteration of
+the main `update` function so ensure it is efficient.
 ```elm
-update msg model =
-    case msg of
-        ...
-        PhoenixMsg phoenixMsg ->
-            let
-                channelModel = { rooms = model.rooms }
-                ( phoenixModel, cmd ) =
-                    Phoenix.update phoenixConfig socket channels channelModel phoenixMsg model.phoenixModel
-            in
-            ( { model | phoenixModel = phoenixModel }, cmd )
-            ...
+
+channelsModelBuilder model =
+  { rooms = model.rooms }
+
+phoenixConfig =
+  Phoenix.Config.new
+    PhoenixMsg
+    PhoenixPorts.ports
+    socket
+    -- getter
+    .phoenixModel
+    -- setter
+    (\phoenixModel model -> { model | phoenixModel = phoenixModel })
+    |> Phoenix.Config.withDynamicChannels channels channelsModelBuilder
+
 ```
-This can be then used to dynamically join channels.
+This can be then used to dynamically join channels as the `channelsModel` will be passed as a parameter
 e.g.
 ```elm
-channels channelModel =
+channels channelsModel =
   [ Channel.init "room:lobby"
         |> Channel.on "new_msg" NewMsg
-  ] ++ List.map Channel.init channelModel.rooms
+  ] ++ List.map Channel.init channelsModel.rooms
 ```
 
+**Warning** - Do NOT put `Json.Encode.Value`s into your channel model.  As an optimisation, the library compares the passed channels model with the version from the previous functional call and then only calls the provided `channels` function if the model has changed.  This comparison is done with `==` and due to an issue in Elm, comparing a model with a contained `Json.Encode.Value` can cause a runtime exception. (See https://github.com/elm/core/issues/1058).
+
+If you do need to have `Json.Encode.Value`s in your channel model you can use `Phoenix.Config.withChannelsModelComparator` to build the config and provide a safe comparator for your channels model in place of the default `(==)`.
+
 **Warning** - If you want to leave all channels (e.g. when showing an error page to the user)
-do not remove `Phoenix.connect` from your `subscriptions` function as this will have no effect.
+do not remove `Phoenix.subscriptions` from your `subscriptions` function as this will have no effect.
 Instead, return an empty list of channels from the `channels` function.
+
+### Using in an app with delegated update functions
+
+If you have an app with several pages, you may have a design with a main `update` function that delegates to an `update` function in child pages. If these
+child pages need to trigger a `Phoenix.push` you will need to pass the `Phoenix.Config.Config` to these child pages, but due to complex type of this config
+you will probably get into a mapping nightmare.
+
+To simplfy this, you can create a minimum version of the config needed for `Phoenix.push` (which has a much simpler type) by using `Phoenix.Config.toPushConfig`
+passing the full config. The type generated by this can then be passed to `Phoenix.push`.  It also has a mapping function `Phoenix.Config.mapPushConfig`.
 
 ## Module docs
 Please see https://package.elm-lang.org/packages/chazsconi/elm-phoenix-ports/latest
@@ -214,8 +251,8 @@ Please see the example chat room app in the `example` folder.
 
 ### Replacing Effects Manager
 
-Because there is no Effects Manager available in Elm 0.19, a time subscription is used to check every few 100ms if the model that
-is used to construct the channels has changed.  If it has, then the `channels` function is evaluated.
+Because there is no Effects Manager available in Elm 0.19, the main `update` function is wrapped using `Phoenix.updateWrapper`
+to construct the channels if the model has changed.  If it has, then the `channels` function is evaluated.
 Any new channels are joined, and any old ones are left by making calls to ports.  The JS objects that represent the channels
 are stored in the model along with their state. When `phoenix.js` receives an event this is passed back to Elm via a port, which
 triggers events in the main app.
@@ -225,8 +262,7 @@ to explicitly join and leave channels.
 
 ## Why have a Phoenix.Config
 
-This encapsulates the parent `Msg` type and also the real ports module and is a convenience for passing as a
-parameter to `Phoenix.push`.
+This encapsulates all the config required and simplifies the wiring.
 
 An alternative would have been to put this information in the `Socket` however
 often you will want to have your socket constructed dynamically from your model - e.g. adding a user token as
@@ -247,3 +283,4 @@ If you use the package in your project, it would be nice to know
 
 ## TODO
 * Implement missing features (See TODO markers)
+* Update example app to use updated config

@@ -1,7 +1,7 @@
 module Phoenix exposing
     ( Msg
     , Model
-    , connect, new, push, update, mapMsg
+    , subscriptions, new, push, update, updateWrapper, mapMsg
     )
 
 {-| Entrypoint for Phoenix
@@ -15,15 +15,13 @@ module Phoenix exposing
 
 # Helpers
 
-@docs connect, new, push, update, mapMsg
+@docs subscriptions, new, push, update, updateWrapper, mapMsg
 
 -}
 
 import Dict
-import Json.Decode as JD
 import Json.Encode as JE
-import Phoenix.Channel exposing (Channel, Topic)
-import Phoenix.Config exposing (Config)
+import Phoenix.Config exposing (Config, PushableConfig)
 import Phoenix.Internal.ChannelStates as ChannelStates exposing (ChannelObj)
 import Phoenix.Internal.Pushes as Pushes exposing (PushRef)
 import Phoenix.Internal.Types exposing (Model, Msg(..), PresenceEvent(..), SocketState(..))
@@ -31,7 +29,6 @@ import Phoenix.PortsAPI as PortsAPI exposing (Ports)
 import Phoenix.Push exposing (Push)
 import Phoenix.Socket exposing (Socket)
 import Task
-import Time
 
 
 
@@ -60,7 +57,7 @@ new =
 
 {-| Push an event to a channel
 -}
-push : Config msg -> Push msg -> Cmd msg
+push : PushableConfig msg a -> Push msg -> Cmd msg
 push config p =
     Cmd.map config.parentMsg <|
         Task.perform (\_ -> SendPush p) (Task.succeed Ok)
@@ -68,9 +65,15 @@ push config p =
 
 {-| Update the model
 -}
-update : Config msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
-update config socket channelsFn channelsModel msg model =
+update : Config msg parentModel channelsModel -> Msg msg -> parentModel -> ( parentModel, Cmd msg )
+update config msg parentModel =
     let
+        model =
+            config.modelGetter parentModel
+
+        socket =
+            config.socket parentModel
+
         _ =
             if config.debug then
                 Debug.log "msg model" ( msg, model )
@@ -78,70 +81,111 @@ update config socket channelsFn channelsModel msg model =
             else
                 ( msg, model )
 
-        ( updateModel, cmd, parentMsgs ) =
+        ( updatedModel, cmd, parentMsgs ) =
             case config.ports of
                 Nothing ->
                     ( model, Cmd.none, [] )
 
                 Just ports ->
-                    internalUpdate ports socket channelsFn channelsModel msg model
+                    internalUpdate ports socket msg model
 
         allCmd =
             Cmd.batch <| Cmd.map config.parentMsg cmd :: List.map (\parentMsg -> Task.perform (\_ -> parentMsg) (Task.succeed Ok)) parentMsgs
     in
-    ( updateModel, allCmd )
+    ( config.modelSetter updatedModel parentModel, allCmd )
 
 
-internalUpdate : Ports msg -> Socket msg -> (channelsModel -> List (Channel msg)) -> channelsModel -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd (Msg msg), List msg )
-internalUpdate ports socket channelsFn channelsModel msg model =
+{-| Updates the channels by plugging into the main update function
+-}
+updateWrapper :
+    Config msg parentModel channelsModel
+    -> (msg -> parentModel -> ( parentModel, Cmd msg ))
+    -> (msg -> parentModel -> ( parentModel, Cmd msg ))
+updateWrapper config mainUpdate =
+    let
+        phoenixUpdate ( parentModel, cmd ) =
+            let
+                ( phoenixModel, phoenixCmd ) =
+                    updateChannels config
+                        -- Resolve these with the parentModel
+                        (config.socket parentModel)
+                        (config.channelsModelBuilder parentModel)
+                        (config.modelGetter parentModel)
+            in
+            ( config.modelSetter phoenixModel parentModel, Cmd.batch [ phoenixCmd, cmd ] )
+    in
+    \msg model ->
+        mainUpdate msg model |> phoenixUpdate
+
+
+updateChannels : Config msg parentModel channelsModel -> Socket msg -> channelsModel -> Model msg channelsModel -> ( Model msg channelsModel, Cmd msg )
+updateChannels config socket channelsModel model =
+    case config.ports of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just ports ->
+            let
+                ( updateModel, cmd, parentMsgs ) =
+                    case model.socketState of
+                        Disconnected ->
+                            ( { model | socketState = Connected }
+                            , ports.connectSocket
+                                { endpoint = socket.endpoint
+                                , params = JE.dict identity JE.string (Dict.fromList socket.params)
+                                }
+                            , []
+                            )
+
+                        Connected ->
+                            if
+                                -- Only connect/disconnect channels if the channelModel has changed
+                                Maybe.map (\previousChannelsModel -> config.channelsModelComparator channelsModel previousChannelsModel) model.previousChannelsModel
+                                    |> Maybe.withDefault False
+                            then
+                                ( model, Cmd.none, [] )
+
+                            else
+                                let
+                                    ( updatedChannelStates, newChannels, removedChannelObjs ) =
+                                        ChannelStates.update (config.channelsBuilder channelsModel) model.channelStates
+
+                                    newChannelsCmd =
+                                        if newChannels == [] then
+                                            Cmd.none
+
+                                        else
+                                            ports.joinChannels <|
+                                                List.map
+                                                    (\c ->
+                                                        { topic = c.topic
+                                                        , payload = Maybe.withDefault JE.null c.payload
+                                                        , onHandlers = { onOk = c.onJoin /= Nothing, onError = c.onJoinError /= Nothing, onTimeout = False }
+                                                        , presence = c.presence /= Nothing
+                                                        }
+                                                    )
+                                                    newChannels
+
+                                    onRequestJoinMsgs =
+                                        List.filterMap .onRequestJoin newChannels
+
+                                    cmds =
+                                        newChannelsCmd
+                                            :: List.map ports.leaveChannel removedChannelObjs
+                                in
+                                ( { model | previousChannelsModel = Just channelsModel, channelStates = updatedChannelStates }, Cmd.batch cmds, onRequestJoinMsgs )
+
+                allCmd =
+                    Cmd.batch <| Cmd.map config.parentMsg cmd :: List.map (\parentMsg -> Task.perform (\_ -> parentMsg) (Task.succeed Ok)) parentMsgs
+            in
+            ( updateModel, allCmd )
+
+
+internalUpdate : Ports msg -> Socket msg -> Msg msg -> Model msg channelsModel -> ( Model msg channelsModel, Cmd (Msg msg), List msg )
+internalUpdate ports socket msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none, [] )
-
-        Tick _ ->
-            case model.socketState of
-                Disconnected ->
-                    ( { model | socketState = Connected }
-                    , ports.connectSocket
-                        { endpoint = socket.endpoint
-                        , params = JE.dict identity JE.string (Dict.fromList socket.params)
-                        }
-                    , []
-                    )
-
-                Connected ->
-                    if Just channelsModel == model.previousChannelsModel then
-                        ( model, Cmd.none, [] )
-
-                    else
-                        let
-                            ( updatedChannelStates, newChannels, removedChannelObjs ) =
-                                ChannelStates.update (channelsFn channelsModel) model.channelStates
-
-                            newChannelsCmd =
-                                if newChannels == [] then
-                                    Cmd.none
-
-                                else
-                                    ports.joinChannels <|
-                                        List.map
-                                            (\c ->
-                                                { topic = c.topic
-                                                , payload = Maybe.withDefault JE.null c.payload
-                                                , onHandlers = { onOk = c.onJoin /= Nothing, onError = c.onJoinError /= Nothing, onTimeout = False }
-                                                , presence = c.presence /= Nothing
-                                                }
-                                            )
-                                            newChannels
-
-                            onRequestJoinMsgs =
-                                List.filterMap .onRequestJoin newChannels
-
-                            cmds =
-                                [ newChannelsCmd ]
-                                    ++ List.map ports.leaveChannel removedChannelObjs
-                        in
-                        ( { model | previousChannelsModel = Just channelsModel, channelStates = updatedChannelStates }, Cmd.batch cmds, onRequestJoinMsgs )
 
         SocketOpened ->
             ( model, Cmd.none, maybeToList socket.onOpen )
@@ -169,7 +213,7 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                     , []
                     )
 
-        ChannelPushOk topic pushRef payload ->
+        ChannelPushOk _ pushRef payload ->
             case Pushes.pop pushRef model.pushes of
                 Nothing ->
                     ( model, Cmd.none, [] )
@@ -177,13 +221,21 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                 Just ( p, updatedPushes ) ->
                     ( { model | pushes = updatedPushes }, Cmd.none, maybeToList <| Maybe.map (\c -> c payload) p.onOk )
 
-        ChannelPushError topic pushRef payload ->
+        ChannelPushError _ pushRef payload ->
             case Pushes.pop pushRef model.pushes of
                 Nothing ->
                     ( model, Cmd.none, [] )
 
                 Just ( p, updatedPushes ) ->
                     ( { model | pushes = updatedPushes }, Cmd.none, maybeToList <| Maybe.map (\c -> c payload) p.onError )
+
+        ChannelPushTimeout _ pushRef ->
+            case Pushes.pop pushRef model.pushes of
+                Nothing ->
+                    ( model, Cmd.none, [] )
+
+                Just ( p, updatedPushes ) ->
+                    ( { model | pushes = updatedPushes }, Cmd.none, maybeToList p.onTimeout )
 
         ChannelsCreated channelsCreated ->
             let
@@ -259,6 +311,19 @@ internalUpdate ports socket channelsFn channelsModel msg model =
                 Nothing ->
                     ( model, Cmd.none, [] )
 
+        ChannelJoinTimeout topic ->
+            case ChannelStates.getChannel topic model.channelStates of
+                Just channel ->
+                    case channel.onJoinTimeout of
+                        Nothing ->
+                            ( model, Cmd.none, [] )
+
+                        Just onJoinTimeout ->
+                            ( model, Cmd.none, [ onJoinTimeout ] )
+
+                Nothing ->
+                    ( model, Cmd.none, [] )
+
         ChannelLeaveOk topic payload ->
             case ChannelStates.getChannel topic model.channelStates of
                 Just channel ->
@@ -291,6 +356,25 @@ internalUpdate ports socket channelsFn channelsModel msg model =
 
                         Just onLeaveError ->
                             ( updatedModel, Cmd.none, [ onLeaveError payload ] )
+
+                Nothing ->
+                    ( model, Cmd.none, [] )
+
+        ChannelLeaveTimeout topic ->
+            case ChannelStates.getChannel topic model.channelStates of
+                Just channel ->
+                    let
+                        -- Not sure what to do here, or how a leave error can occur
+                        -- but the channel is removed anyway
+                        updatedModel =
+                            { model | channelStates = ChannelStates.remove topic model.channelStates }
+                    in
+                    case channel.onLeaveTimeout of
+                        Nothing ->
+                            ( updatedModel, Cmd.none, [] )
+
+                        Just onLeaveTimeout ->
+                            ( updatedModel, Cmd.none, [ onLeaveTimeout ] )
 
                 Nothing ->
                     ( model, Cmd.none, [] )
@@ -353,18 +437,10 @@ maybeToList m =
             []
 
 
-{-| Connect the socket
+{-| Subscriptions for phoenix
 -}
-connect : Config msg -> Sub msg
-connect config =
-    let
-        tickInterval =
-            if config.debug then
-                1000
-
-            else
-                100
-    in
+subscriptions : Config msg parentModel channelsModel -> Sub msg
+subscriptions config =
     case config.ports of
         Nothing ->
             Sub.none
@@ -379,7 +455,6 @@ connect config =
                     , ports.socketOpened (\_ -> SocketOpened)
                     , ports.socketClosed SocketClosed
                     , ports.presenceUpdated parsePresenceUpdated
-                    , Time.every tickInterval Tick
                     ]
 
 
@@ -393,7 +468,7 @@ pushChannel ports pushRef channelObj p =
         , onHandlers =
             { onOk = p.onOk /= Nothing
             , onError = p.onError /= Nothing
-            , onTimeout = True
+            , onTimeout = p.onTimeout /= Nothing
             }
         }
 
@@ -451,6 +526,21 @@ parsePushReply { topic, eventName, pushType, ref, payload } =
                     -- Unknown push type
                     NoOp
 
+        "timeout" ->
+            case ( pushType, ref ) of
+                ( "join", _ ) ->
+                    ChannelJoinTimeout topic
+
+                ( "leave", _ ) ->
+                    ChannelLeaveTimeout topic
+
+                ( "msg", Just r ) ->
+                    ChannelPushTimeout topic r
+
+                _ ->
+                    -- Unknown push type
+                    NoOp
+
         _ ->
             -- Unknown event type
             NoOp
@@ -467,9 +557,6 @@ mapMsg func msg =
         NoOp ->
             NoOp
 
-        Tick time ->
-            Tick time
-
         SocketOpened ->
             SocketOpened
 
@@ -485,17 +572,26 @@ mapMsg func msg =
         ChannelJoinError a b ->
             ChannelJoinError a b
 
+        ChannelJoinTimeout a ->
+            ChannelJoinTimeout a
+
         ChannelLeaveOk a b ->
             ChannelLeaveOk a b
 
         ChannelLeaveError a b ->
             ChannelLeaveError a b
 
+        ChannelLeaveTimeout a ->
+            ChannelLeaveTimeout a
+
         ChannelPushOk a b c ->
             ChannelPushOk a b c
 
         ChannelPushError a b c ->
             ChannelPushError a b c
+
+        ChannelPushTimeout a b ->
+            ChannelPushTimeout a b
 
         ChannelMessage a b c ->
             ChannelMessage a b c

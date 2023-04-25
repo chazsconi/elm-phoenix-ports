@@ -6,7 +6,7 @@ import {
 export function init(app, opts) {
   let socket = null;
   let debug = opts && opts.debug || false
-  let log = debug ? console.log : () => {}
+  let log = debug ? console.log : () => { }
 
   let pushHandlers = (push, channel, type, ref, onHandlers) => {
     if (onHandlers.onOk) {
@@ -39,6 +39,15 @@ export function init(app, opts) {
     }
     push.receive("timeout", () => {
       log("push timeout")
+      if (onHandlers.onTimeout) {
+        app.ports.pushReply.send({
+          eventName: "timeout",
+          topic: channel.topic,
+          pushType: type,
+          ref: ref,
+          payload: null
+        })
+      }
     })
   }
 

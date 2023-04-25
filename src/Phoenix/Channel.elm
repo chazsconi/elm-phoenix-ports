@@ -1,7 +1,7 @@
 module Phoenix.Channel exposing
     ( Channel
     , Topic
-    , init, withPayload, on, onJoin, onRequestJoin, onJoinError, onError, onLeave, onLeaveError, withDebug, withPresence, map
+    , init, withPayload, on, onJoin, onRequestJoin, onJoinError, onJoinTimeout, onError, onLeave, onLeaveError, onLeaveTimeout, withDebug, withPresence, map
     -- , onRejoin
     -- TODO: Implement these
     -- , onDisconnect
@@ -18,7 +18,7 @@ module Phoenix.Channel exposing
 
 # Helpers
 
-@docs init, withPayload, on, onJoin, onRequestJoin, onJoinError, onError, onLeave, onLeaveError, withDebug, withPresence, map
+@docs init, withPayload, on, onJoin, onRequestJoin, onJoinError, onJoinTimeout, onError, onLeave, onLeaveError, onLeaveTimeout, withDebug, withPresence, map
 
 -}
 
@@ -49,11 +49,13 @@ type alias PhoenixChannel msg =
     , onRequestJoin : Maybe msg
     , onJoin : Maybe (Value -> msg)
     , onJoinError : Maybe (Value -> msg)
+    , onJoinTimeout : Maybe msg
     , onDisconnect : Maybe msg
     , onError : Maybe msg
     , onRejoin : Maybe (Value -> msg)
     , onLeave : Maybe (Value -> msg)
     , onLeaveError : Maybe (Value -> msg)
+    , onLeaveTimeout : Maybe msg
     , on : Dict String (Value -> msg)
     , presence : Maybe (Presence msg)
     , debug : Bool
@@ -72,11 +74,13 @@ init topic =
     , onRequestJoin = Nothing
     , onJoin = Nothing
     , onJoinError = Nothing
+    , onJoinTimeout = Nothing
     , onDisconnect = Nothing
     , onError = Nothing
     , onRejoin = Nothing
     , onLeave = Nothing
     , onLeaveError = Nothing
+    , onLeaveTimeout = Nothing
     , on = Dict.empty
     , presence = Nothing
     , debug = False
@@ -159,6 +163,20 @@ onJoinError onJoinError_ chan =
     { chan | onJoinError = Just onJoinError_ }
 
 
+{-| Set a callback which will be called if a timeout occurred on your request to join the channel.
+
+    type Msg =
+        JoinTimeout | ...
+
+    init "room:lobby"
+        |> onJoinTimeout JoinTimeout
+
+-}
+onJoinTimeout : msg -> Channel msg -> Channel msg
+onJoinTimeout onJoinTimeout_ chan =
+    { chan | onJoinTimeout = Just onJoinTimeout_ }
+
+
 {-| Set a callback which will be called if the channel process on the server crashed. The effect manager will automatically rejoin the channel after a crash.
 
     type Msg =
@@ -225,6 +243,20 @@ onLeaveError onLeaveError_ chan =
     { chan | onLeaveError = Just onLeaveError_ }
 
 
+{-| Set a callback which will be called if a timeout occurred on your request to leave the channel.
+
+    type Msg =
+        LeaveTimeout | ...
+
+    init "room:lobby"
+        |> onLeaveTimeout LeaveTimeout
+
+-}
+onLeaveTimeout : msg -> Channel msg -> Channel msg
+onLeaveTimeout onLeaveTimeout_ chan =
+    { chan | onLeaveTimeout = Just onLeaveTimeout_ }
+
+
 {-| Set a callback which will be called when there is a change in the presence state caused by "presence\_state" and "presence\_diff" events.
 
     type Msg =
@@ -253,11 +285,13 @@ map func chan =
             , onRequestJoin = Maybe.map func chan.onRequestJoin
             , onJoin = f chan.onJoin
             , onJoinError = f chan.onJoinError
+            , onJoinTimeout = Maybe.map func chan.onJoinTimeout
             , onError = Maybe.map func chan.onError
             , onDisconnect = Maybe.map func chan.onDisconnect
             , onRejoin = f chan.onRejoin
             , onLeave = f chan.onLeave
             , onLeaveError = f chan.onLeaveError
+            , onLeaveTimeout = Maybe.map func chan.onLeaveTimeout
             , presence = Maybe.map (Presence.map func) chan.presence
             , on = Dict.map (\_ a -> func << a) chan.on
             , debug = chan.debug

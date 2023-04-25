@@ -6,7 +6,6 @@ import Phoenix.Channel exposing (Topic)
 import Phoenix.Internal.ChannelStates exposing (ChannelStates)
 import Phoenix.Internal.Pushes exposing (PushRef, Pushes)
 import Phoenix.Push exposing (Push)
-import Time
 
 
 type alias Event =
@@ -21,17 +20,19 @@ type PresenceEvent
 
 type Msg msg
     = NoOp
-    | Tick Time.Posix
     | SocketOpened
     | SocketClosed { code : Int, reason : String, wasClean : Bool }
     | SendPush (Push msg)
     | ChannelsCreated (List ( Topic, JD.Value ))
     | ChannelJoinOk Topic JD.Value
     | ChannelJoinError Topic JD.Value
+    | ChannelJoinTimeout Topic
     | ChannelLeaveOk Topic JD.Value
     | ChannelLeaveError Topic JD.Value
+    | ChannelLeaveTimeout Topic
     | ChannelPushOk Topic PushRef JD.Value
     | ChannelPushError Topic PushRef JD.Value
+    | ChannelPushTimeout Topic PushRef
     | ChannelMessage Topic Event JD.Value
     | ChannelError Topic
     | PresenceUpdated PresenceEvent Topic (Dict String (List JD.Value))
