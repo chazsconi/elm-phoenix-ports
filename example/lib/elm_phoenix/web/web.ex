@@ -21,7 +21,6 @@ defmodule ElmPhoenix.Web do
       use Phoenix.Controller, namespace: ElmPhoenix.Web
       import Plug.Conn
       import ElmPhoenix.Web.Router.Helpers
-      import ElmPhoenix.Web.Gettext
     end
   end
 
@@ -38,8 +37,6 @@ defmodule ElmPhoenix.Web do
       use Phoenix.HTML
 
       import ElmPhoenix.Web.Router.Helpers
-      import ElmPhoenix.Web.ErrorHelpers
-      import ElmPhoenix.Web.Gettext
     end
   end
 
@@ -54,7 +51,6 @@ defmodule ElmPhoenix.Web do
   def channel do
     quote do
       use Phoenix.Channel
-      import ElmPhoenix.Web.Gettext
     end
   end
 
