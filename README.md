@@ -126,7 +126,7 @@ main =
     Browser.element
         { init = init
         , view = view
-        , update = update |> Phoenix.updateWrapper Channels.config
+        , update = update |> Phoenix.updateWrapper phoenixConfig
         , subscriptions = subscriptions
         }
 
