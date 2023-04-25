@@ -1,8 +1,8 @@
 {
     "type": "application",
     "source-directories": [
-        "src",
-        "../node_modules/elm-phoenix-ports/elm-ports"
+        "elm",
+        "node_modules/elm-phoenix-ports/elm-ports"
     ],
     "elm-version": "0.19.1",
     "dependencies": {

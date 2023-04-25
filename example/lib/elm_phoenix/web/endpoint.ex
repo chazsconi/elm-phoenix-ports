@@ -11,7 +11,7 @@ defmodule ElmPhoenix.Web.Endpoint do
     at: "/",
     from: :elm_phoenix,
     gzip: false,
-    only: ~w(css fonts images js favicon.ico robots.txt)
+    only: ~w(assets css fonts images js favicon.ico robots.txt)
   )
 
   # Code reloading can be explicitly enabled under the
