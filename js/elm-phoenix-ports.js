@@ -37,9 +37,9 @@ export function init(app, opts) {
         })
       })
     }
-    push.receive("timeout", () => {
-      log("push timeout")
-      if (onHandlers.onTimeout) {
+    if (onHandlers.onTimeout) {
+      push.receive("timeout", () => {
+        log("push timeout")
         app.ports.pushReply.send({
           eventName: "timeout",
           topic: channel.topic,
@@ -47,8 +47,8 @@ export function init(app, opts) {
           ref: ref,
           payload: null
         })
-      }
-    })
+      })
+    }
   }
 
   let presenceHandlers = (channel) => {
