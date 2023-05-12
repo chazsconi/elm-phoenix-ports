@@ -282,5 +282,4 @@ If you use the package in your project, it would be nice to know
 
 
 ## TODO
-* Implement missing features (See TODO markers)
-* Update example app to use updated config
+* Implement missing features (See NOT YET IMPLEMENTED markers)

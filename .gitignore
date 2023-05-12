@@ -2,3 +2,4 @@ elm-stuff/
 node_modules
 package-lock.json
 docs.json
+.tool-versions

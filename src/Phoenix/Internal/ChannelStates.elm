@@ -111,11 +111,6 @@ foldl func acc (ChannelStates cs) =
     Dict.foldl func acc cs
 
 
-topics : ChannelStates msg -> List Topic
-topics (ChannelStates cs) =
-    Dict.keys cs
-
-
 {-| Topics that are in the list of topics but not in channel state
 -}
 newChannels : List (Channel msg) -> ChannelStates msg -> List (Channel msg)
@@ -133,10 +128,10 @@ newChannels channels channelStates =
 
 
 removedTopics : List Topic -> ChannelStates msg -> ( List Topic, List ChannelObj )
-removedTopics topics1 channelStates =
+removedTopics topics channelStates =
     foldl
         (\topic internalChannel ( topicAcc, objAcc ) ->
-            if List.member topic topics1 then
+            if List.member topic topics then
                 ( topicAcc, objAcc )
 
             else
@@ -165,8 +160,8 @@ addChannels channels channelStates =
 
 
 setPendingLeaveTopics : List Topic -> ChannelStates msg -> ChannelStates msg
-setPendingLeaveTopics topics_ channelStates =
-    List.foldl setPendingLeave channelStates topics_
+setPendingLeaveTopics topics channelStates =
+    List.foldl setPendingLeave channelStates topics
 
 
 update : List (Channel msg) -> ChannelStates msg -> ( ChannelStates msg, List (Channel msg), List ChannelObj )

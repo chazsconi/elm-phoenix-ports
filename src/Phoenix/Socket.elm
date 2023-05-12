@@ -1,12 +1,7 @@
 module Phoenix.Socket exposing
     ( Socket
     , init, withParams, onOpen, onClose, map
-    -- ,  AbnormalClose
-    -- TODO: Implement these
-    -- , heartbeatIntervallSeconds
-    -- , onNormalClose
-    -- , withoutHeartbeat
-    -- , reconnectTimer
+    , heartbeatIntervalSeconds, onAbnormalClose, onNormalClose, reconnectTimer, withoutHeartbeat
     )
 
 {-| A socket declares to which endpoint a socket connection should be established.
@@ -45,7 +40,7 @@ type alias AbnormalClose =
 type alias PhoenixSocket msg =
     { endpoint : String
     , params : List ( String, String )
-    , heartbeatIntervall : Time
+    , heartbeatInterval : Time
     , withoutHeartbeat : Bool
     , reconnectTimer : Int -> Int
     , onOpen : Maybe msg
@@ -64,7 +59,7 @@ init : String -> Socket msg
 init endpoint =
     { endpoint = endpoint
     , params = []
-    , heartbeatIntervall = 30 * 1000
+    , heartbeatInterval = 30 * 1000
     , withoutHeartbeat = False
     , reconnectTimer = defaultReconnectTimer
     , onOpen = Nothing
@@ -85,18 +80,18 @@ withParams params socket =
     { socket | params = params }
 
 
-{-| The client regularly sends a heartbeat to the server. With this function you can specify the intervall in which the heartbeats are send. By default it\_s 30 seconds.
+{-| NOT YET IMPLEMENTED - The client regularly sends a heartbeat to the server. With this function you can specify the intervall in which the heartbeats are send. By default it\_s 30 seconds.
 
     init "ws://localhost:4000/socket/websocket"
         |> heartbeatIntervallSeconds 60
 
 -}
-heartbeatIntervallSeconds : Int -> Socket msg -> Socket msg
-heartbeatIntervallSeconds intervall socket =
-    { socket | heartbeatIntervall = intervall * 1000 }
+heartbeatIntervalSeconds : Int -> Socket msg -> Socket msg
+heartbeatIntervalSeconds intervall socket =
+    { socket | heartbeatInterval = intervall * 1000 }
 
 
-{-| The client regularly sends a heartbeat to the sever. With this function you can disable the heartbeat.
+{-| NOT YET IMPLEMENTED - The client regularly sends a heartbeat to the sever. With this function you can disable the heartbeat.
 
     init "ws://localhost:4000/socket/websocket"
         |> withoutHeartbeat
@@ -107,7 +102,7 @@ withoutHeartbeat socket =
     { socket | withoutHeartbeat = True }
 
 
-{-| The effect manager will try to establish a socket connection. If it fails it will try again with a specified backoff. By default the effect manager will use the following exponential backoff strategy:
+{-| NOT YET IMPLEMENTED - The effect manager will try to establish a socket connection. If it fails it will try again with a specified backoff. By default the effect manager will use the following exponential backoff strategy:
 
     defaultReconnectTimer failedAttempts =
         if backoff < 1 then
@@ -131,7 +126,7 @@ onOpen onOpenMsg socket =
     { socket | onOpen = Just onOpenMsg }
 
 
-{-| Set a callback which will be called if the socket connection got closed abnormal, i.e., if the server declined the socket authentication. So this callback is useful for updating query params like access tokens.
+{-| NOT YET IMPLEMENTED - Set a callback which will be called if the socket connection got closed abnormal, i.e., if the server declined the socket authentication. So this callback is useful for updating query params like access tokens.
 
     type Msg =
         RefreshAccessToken | ...
@@ -146,7 +141,7 @@ onAbnormalClose onAbnormalClose_ socket =
     { socket | onAbnormalClose = Just onAbnormalClose_ }
 
 
-{-| Set a callback which will be called if the socket connection got closed normal. Useful if you have to do some additional clean up.
+{-| NOT YET IMPLEMENTED - Set a callback which will be called if the socket connection got closed normal. Useful if you have to do some additional clean up.
 -}
 onNormalClose : msg -> Socket msg -> Socket msg
 onNormalClose onNormalClose_ socket =
@@ -175,7 +170,7 @@ map : (a -> b) -> Socket a -> Socket b
 map func socket =
     { endpoint = socket.endpoint
     , params = socket.params
-    , heartbeatIntervall = socket.heartbeatIntervall
+    , heartbeatInterval = socket.heartbeatInterval
     , withoutHeartbeat = socket.withoutHeartbeat
     , reconnectTimer = socket.reconnectTimer
     , onOpen = Maybe.map func socket.onOpen

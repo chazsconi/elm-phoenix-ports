@@ -2,9 +2,7 @@ module Phoenix.Channel exposing
     ( Channel
     , Topic
     , init, withPayload, on, onJoin, onRequestJoin, onJoinError, onJoinTimeout, onError, onLeave, onLeaveError, onLeaveTimeout, withDebug, withPresence, map
-    -- , onRejoin
-    -- TODO: Implement these
-    -- , onDisconnect
+    , onDisconnect, onRejoin
     )
 
 {-| A channel declares which topic should be joined, registers event handlers and has various callbacks for possible lifecycle events.
@@ -23,7 +21,7 @@ module Phoenix.Channel exposing
 -}
 
 import Dict exposing (Dict)
-import Json.Decode as Decode exposing (Value)
+import Json.Decode exposing (Value)
 import Phoenix.Presence as Presence exposing (Presence)
 
 
@@ -191,7 +189,7 @@ onError onError_ chan =
     { chan | onError = Just onError_ }
 
 
-{-| Set a callback which will be called if the socket connection got interrupted. Useful to switch the online status to offline.
+{-| NOT YET IMPLEMENTED - Set a callback which will be called if the socket connection got interrupted. Useful to switch the online status to offline.
 
     type Msg =
         IsOffline | ...
@@ -207,7 +205,7 @@ onDisconnect onDisconnect_ chan =
     { chan | onDisconnect = Just onDisconnect_ }
 
 
-{-| Set a callback which will be called after you sucessfully rejoined the channel after a disconnect. Useful if you want to catch up missed messages.
+{-| NOT YET IMPLEMENTED - Set a callback which will be called after you sucessfully rejoined the channel after a disconnect. Useful if you want to catch up missed messages.
 
     type Msg =
         IsOnline Json.Encode.Value | ...

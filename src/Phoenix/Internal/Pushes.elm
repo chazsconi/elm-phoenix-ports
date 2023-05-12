@@ -64,9 +64,6 @@ insert push pushes =
 -}
 pop : PushRef -> Pushes msg -> Maybe ( Push msg, Pushes msg )
 pop ref pushes =
-    case Dict.get ref pushes.sent of
-        Nothing ->
-            Nothing
-
-        Just push ->
-            Just ( push, { pushes | sent = Dict.remove ref pushes.sent } )
+    pushes.sent
+        |> Dict.get ref
+        |> Maybe.map (\push -> ( push, { pushes | sent = Dict.remove ref pushes.sent } ))

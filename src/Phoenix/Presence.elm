@@ -18,7 +18,7 @@ module Phoenix.Presence exposing
 -}
 
 import Dict exposing (Dict)
-import Json.Decode as JD exposing (Decoder, Value)
+import Json.Decode exposing (Value)
 
 
 
