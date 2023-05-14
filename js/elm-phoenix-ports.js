@@ -3,6 +3,8 @@ import {
   Presence
 } from "phoenix"
 
+const INTERNAL_CHANNEL_EVENTS = ["phx_close", "phx_error", "phx_join", "phx_reply", "phx_leave"]
+const INTERNAL_CHANNEL_REPLY_EVENT_PREFIX = "chan_reply_"
 export function init(app, opts) {
   let socket = null;
   let debug = opts && opts.debug || false
@@ -131,7 +133,15 @@ export function init(app, opts) {
 
         let channel = socket.channel(data.topic, data.payload)
 
+        // Listen for all message and then in Elm if there is an `on` handler execute it
+        // this is simpler to implement that creating an `on` handler in JS for each one configured in Elm
         channel.onMessage = (e, payload, ref) => {
+          // Filter out internal phx events so we don't pass them to elm as they will not be listened to using an `on` handler
+          // and we avoid polluting the elm debugger with too many messages
+          if (INTERNAL_CHANNEL_EVENTS.includes(e) || e.startsWith(INTERNAL_CHANNEL_REPLY_EVENT_PREFIX)) {
+            return payload
+          }
+
           app.ports.channelMessage.send([channel.topic, e, payload])
           return payload
         }
