@@ -1,8 +1,7 @@
 module Phoenix.Channel exposing
     ( Channel
     , Topic
-    , init, withPayload, on, onJoin, onRequestJoin, onJoinError, onJoinTimeout, onError, onLeave, onLeaveError, onLeaveTimeout, withDebug, withPresence, map
-    , onDisconnect, onRejoin
+    , init, withPayload, on, onDisconnect, onJoin, onRejoin, onRequestJoin, onJoinError, onJoinTimeout, onError, onLeave, onLeaveError, onLeaveTimeout, withDebug, withPresence, map
     )
 
 {-| A channel declares which topic should be joined, registers event handlers and has various callbacks for possible lifecycle events.
@@ -16,7 +15,7 @@ module Phoenix.Channel exposing
 
 # Helpers
 
-@docs init, withPayload, on, onJoin, onRequestJoin, onJoinError, onJoinTimeout, onError, onLeave, onLeaveError, onLeaveTimeout, withDebug, withPresence, map
+@docs init, withPayload, on, onDisconnect, onJoin, onRejoin, onRequestJoin, onJoinError, onJoinTimeout, onError, onLeave, onLeaveError, onLeaveTimeout, withDebug, withPresence, map
 
 -}
 

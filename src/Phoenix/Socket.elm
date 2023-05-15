@@ -1,7 +1,6 @@
 module Phoenix.Socket exposing
     ( Socket
-    , init, withParams, onOpen, onClose, map
-    , heartbeatIntervalSeconds, onAbnormalClose, onNormalClose, reconnectTimer, withoutHeartbeat
+    , init, withParams, onOpen, onClose, map, heartbeatIntervalSeconds, withoutHeartbeat, onAbnormalClose, onNormalClose, reconnectTimer
     )
 
 {-| A socket declares to which endpoint a socket connection should be established.
@@ -14,7 +13,7 @@ module Phoenix.Socket exposing
 
 # Helpers
 
-@docs init, withParams, onOpen, onClose, map
+@docs init, withParams, onOpen, onClose, map, heartbeatIntervalSeconds, withoutHeartbeat, onAbnormalClose, onNormalClose, reconnectTimer
 
 -}
 

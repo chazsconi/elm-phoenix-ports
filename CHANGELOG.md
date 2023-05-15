@@ -4,10 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [2.1.0] - 2023-05-15
 * OTHER - Filter out internal Phoenix events so we don't pass them to elm as they will not be listened to using an `on` handler.  This makes using the Elm debugger easier as it is not polluted with unnecessary messages.  This COULD be a breaking change if for some reason the client explicitly listens for internal Phoenix events, e.g. `phx_close`.
 
-* OTHER - Cleaned code to remove unused references or expose local functions - N.B. There are now some functions that are exposed (e.g. `Socket.withoutHeartbeat`) for which the features are not yet implemented on the JS side.  However these functions are not in the docs - so if a function is not in the docs, don't use them as they will have no effect.
+* OTHER - Cleaned code to remove unused references or expose local functions - N.B. There are now some functions that are exposed (e.g. `Socket.withoutHeartbeat`) for which the features are not yet implemented on the JS side. They are marked as "NOT YET IMPLEMENTED" and will have no effect if used.
 
 * BUG - fixed so that push timeouts are only listened for if `onTimeout` has been set.  Without this, confusing log messages were sent with debug on when the channel didn't reply to a push.
 
